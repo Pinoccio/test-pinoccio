@@ -48,20 +48,13 @@ char* output = (char *)malloc(256);
 char out[8];
  
 void setup() {
-//  PORTB = 0x00;
-//  DDRB = 0x00;
-//  PORTC = 0x00;
-//  DDRC = 0x00;
-//  PORTD = 0x00;
-//  DDRD = 0x00;
-  Serial.begin(115200);
-  Serial.println("Starting up...");
+//  Serial.begin(115200);
+//  Serial.println("Starting up...");
     
   for (int i=2; i<12; i++) {
     digitalWrite(i, LOW);
     pinMode(i, INPUT);
   }
-  
   
   Wire.begin(SLAVE_ADDR);          
   Wire.onReceive(receiveEvent);
@@ -76,27 +69,27 @@ void receiveEvent(int howMany) {
   int pin;
   int value;
   ctr = 0;
-  Serial.print("Received command: ");
+//  Serial.print("Received command: ");
   
   while (Wire.available()) { 
     buffer[ctr++] = Wire.read();
   }
-  Serial.print(buffer);
+//  Serial.print(buffer);
   
   if (strncmp((const char*)buffer, "?", 1) == 0) {
-    Serial.println(" (handshake)");
+//    Serial.println(" (handshake)");
     command = HANDSHAKE;
   } else if (strncmp((const char*)buffer, "RA", 2) == 0) {
-    Serial.println(" (analogPinRead)");
+//    Serial.println(" (analogPinRead)");
     command = ANALOG_READ;
   } else if (strncmp((const char*)buffer, "RD", 2) == 0) {
-    Serial.println(" (digitalPinRead)");
+//    Serial.println(" (digitalPinRead)");
     command = DIGITAL_READ;
   } else if (strncmp((const char*)buffer, "WD", 2) == 0) {
-    Serial.println(" (digitalPinWrite)");
+//    Serial.println(" (digitalPinWrite)");
     command = DIGITAL_WRITE;
   } else {
-    Serial.println(" (Unknown command)");
+//    Serial.println(" (Unknown command)");
     command = UNKNOWN;
     //Wire.write("bad command"); 
   }
@@ -132,13 +125,13 @@ void requestEvent() {
 }
 
 void handshake() {
-  Serial.println("Sending back 'XYZ'");
+//  Serial.println("Sending back 'XYZ'");
   Wire.write("XYZ");
 }
 
 void analogPinRead(int pin) {
-  Serial.print("Read A");
-  Serial.println(pin);
+//  Serial.print("Read A");
+//  Serial.println(pin);
   
   digitalWrite(pin, LOW);
   pinMode(pin, INPUT);
@@ -149,16 +142,16 @@ void analogPinRead(int pin) {
   buf[1] = val >> 8;
   buf[2] = val & 0xFF;
   
-  Serial.print("Sending back: ");
-  Serial.write(buf, 2);
-  Serial.println();
+//  Serial.print("Sending back: ");
+//  Serial.write(buf, 2);
+//  Serial.println();
   Wire.write(buf, 2);
 }
 
 void digitalPinRead(int pin) {
-  Serial.print("Read D");
-  Serial.println(pin);
-  Serial.println(digitalRead(pin));
+//  Serial.print("Read D");
+//  Serial.println(pin);
+//  Serial.println(digitalRead(pin));
   
   digitalWrite(pin, LOW);
   pinMode(pin, INPUT);
@@ -166,20 +159,20 @@ void digitalPinRead(int pin) {
   itoa(digitalRead(pin), out, 10);
   output = strcat(":", out);
   
-  Serial.print("Sending back: ");
-  Serial.println(output);
+//  Serial.print("Sending back: ");
+//  Serial.println(output);
   Wire.write(output);
 }
 
 void digitalPinWrite(int pin, int value) {
-  Serial.print("Writing D");
-  Serial.print(pin);
-  Serial.print(" to ");
-  Serial.println(value);
+//  Serial.print("Writing D");
+//  Serial.print(pin);
+//  Serial.print(" to ");
+//  Serial.println(value);
   pinMode(pin, OUTPUT);
   digitalWrite(pin, value);
   
-  Serial.println("Sending back: 1");
+//  Serial.println("Sending back: 1");
   Wire.write(":1");
 }
 

@@ -146,9 +146,7 @@ void setup() {
   } else {
     Serial.println("--- 328 chip ready");
   }
-  delay(1000);
-  Serial.println("Send digital write to D8...");
-  doCommand("i2c.send(\"WD81\")");
+  //doCommand("i2c.send(\"WD81\")");
 }
 
 void loop() {
@@ -165,7 +163,7 @@ void readWire() {
   }
   while (Wire.available()) { 
     wireBuffer[ctr++] = Wire.read();
-    Serial.write(wireBuffer[ctr-1]);
+    //Serial.write(wireBuffer[ctr-1]);
   }   
 }
 
@@ -187,6 +185,17 @@ void testJigSetup() {
 
   pinMode(startButton, INPUT);
   digitalWrite(startButton, HIGH);
+  
+  doCommand("i2c.send(\"WD00\")");
+  doCommand("i2c.send(\"WD10\")");
+  doCommand("i2c.send(\"WD20\")");
+  doCommand("i2c.send(\"WD30\")");
+  doCommand("i2c.send(\"WD40\")");
+  doCommand("i2c.send(\"WD50\")");
+  doCommand("i2c.send(\"WD60\")");
+  doCommand("i2c.send(\"WD70\")");
+  doCommand("i2c.send(\"WD80\")");
+  doCommand("i2c.send(\"WD90\")");
   
   Serial.println("Scout Test Jig ready to go!");
   RgbLed.cyan();
