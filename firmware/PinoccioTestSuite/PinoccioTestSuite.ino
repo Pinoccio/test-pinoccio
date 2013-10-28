@@ -94,16 +94,18 @@ DUT pins used:
 //#include <serialGLCDlib.h>
 #include <Scout.h>
 #include <Wire.h>
-const int SLAVE_ADDR = 2;
+#include <SPI.h>
+#include <avr/pgmspace.h>
 
+const int SLAVE_ADDR = 2;
 
 //serialGLCD lcd(Serial1);
 
 #define POWERSWITCH_SWITCH 3
 // BROKEN: #define VBAT_SWITCH 4
 #define VUSB_SWITCH 5
-#define MEGA_256RFR2_CS 6
-#define MEGA_16U2_CS 7
+#define MEGA_256RFR2_RESET 6
+#define MEGA_16U2_RESET 7
 const int startButton = 8;
 
 #define DRIVER_FLASH_CS SS
@@ -111,7 +113,7 @@ const int startButton = 8;
 #define JOY_V A5
 #define JOY_H A6
 #define JOY_SWITCH A7
-  
+
 bool testIsRunning = false;
 bool testFailed = false;
 
@@ -135,7 +137,6 @@ void setup() {
   addBitlashFunction("i2c.send", (bitlash_function) i2cSend);
   //Scout.disableShell();
   Scout.setup();
-  testJigSetup();
   
   Serial.println("Begin 328 handshake...");
   sendCommand("?", 3);
@@ -146,7 +147,10 @@ void setup() {
   } else {
     Serial.println("--- 328 chip ready");
   }
-  //doCommand("i2c.send(\"WD81\")");
+  //doCommand("i2c.send(\"RD08\")");
+  
+  
+  testJigSetup();
 }
 
 void loop() {
@@ -169,6 +173,19 @@ void readWire() {
 
 void testJigSetup() {
   
+  doCommand("i2c.send(\"WD000\")");
+  doCommand("i2c.send(\"WD010\")");
+  doCommand("i2c.send(\"WD020\")");
+  doCommand("i2c.send(\"WD030\")");
+  doCommand("i2c.send(\"WD040\")");
+  doCommand("i2c.send(\"WD050\")");
+  doCommand("i2c.send(\"WD060\")");
+  doCommand("i2c.send(\"WD070\")");
+  doCommand("i2c.send(\"WD080\")");
+  doCommand("i2c.send(\"WD090\")");
+  doCommand("i2c.send(\"WD100\")");
+  doCommand("i2c.send(\"WD120\")");
+  
   // disable all switches and chip selects 
   pinMode(POWERSWITCH_SWITCH, OUTPUT);
   digitalWrite(POWERSWITCH_SWITCH, LOW);
@@ -176,26 +193,17 @@ void testJigSetup() {
   //digitalWrite(VBAT_SWITCH, LOW);
   pinMode(VUSB_SWITCH, OUTPUT);
   digitalWrite(VUSB_SWITCH, LOW);
-  pinMode(MEGA_256RFR2_CS, OUTPUT);
-  digitalWrite(MEGA_256RFR2_CS, HIGH);
-  pinMode(MEGA_16U2_CS, OUTPUT);
-  digitalWrite(MEGA_16U2_CS, HIGH);
+  pinMode(MEGA_256RFR2_RESET, OUTPUT);
+  digitalWrite(MEGA_256RFR2_RESET, HIGH);
+  pinMode(MEGA_16U2_RESET, OUTPUT);
+  digitalWrite(MEGA_16U2_RESET, HIGH);
   pinMode(DRIVER_FLASH_CS, OUTPUT);
   digitalWrite(DRIVER_FLASH_CS, HIGH);
+  pinMode(BACKPACK_BUS, INPUT);
+  digitalWrite(BACKPACK_BUS, LOW);
 
   pinMode(startButton, INPUT);
   digitalWrite(startButton, HIGH);
-  
-  doCommand("i2c.send(\"WD00\")");
-  doCommand("i2c.send(\"WD10\")");
-  doCommand("i2c.send(\"WD20\")");
-  doCommand("i2c.send(\"WD30\")");
-  doCommand("i2c.send(\"WD40\")");
-  doCommand("i2c.send(\"WD50\")");
-  doCommand("i2c.send(\"WD60\")");
-  doCommand("i2c.send(\"WD70\")");
-  doCommand("i2c.send(\"WD80\")");
-  doCommand("i2c.send(\"WD90\")");
   
   Serial.println("Scout Test Jig ready to go!");
   RgbLed.cyan();
@@ -265,12 +273,66 @@ void testPower() {
 void flash16U2() {
   Serial.println("- Flash 16U2 -");
 
+//  digitalWrite(RESET, HIGH);
+//  SPI.begin();
+//
+//  // slow down SPI for benefit of slower processors like the Attiny
+//  SPI.setClockDivider(SPI_CLOCK_DIV8);
+//
+//  pinMode(SCK, OUTPUT);
+//  RESET = MEGA_16U2_RESET;
+//  
+//  // set up Timer 1
+//  TCCR1A = _BV (COM1A0);  // toggle OC1A on Compare Match
+//  TCCR1B = _BV(WGM12) | _BV(CS10);   // CTC, no prescaling
+//  OCR1A =  0;       // output every cycle
+//
+//  startProgramming();
+//  getSignature();
+//  getFuseBytes();
+//
+//  // if we found a signature try to write a bootloader
+//  if (foundSig != -1) {
+//    writeBootloader();
+//  }
+//  //readProgram ();
+//
+//  // release reset
+//  digitalWrite (RESET, HIGH);
+  
   return;
 }
 
 void flash256RFR2() {
   Serial.println("- Flash 256RFR2 -");
 
+//  digitalWrite(RESET, HIGH);
+//  SPI.begin();
+//
+//  // slow down SPI for benefit of slower processors like the Attiny
+//  SPI.setClockDivider(SPI_CLOCK_DIV8);
+//
+//  pinMode(SCK, OUTPUT);
+//  RESET = MEGA_256RFR2_RESET;
+//  
+//  // set up Timer 1
+//  TCCR1A = _BV (COM1A0);  // toggle OC1A on Compare Match
+//  TCCR1B = _BV(WGM12) | _BV(CS10);   // CTC, no prescaling
+//  OCR1A =  0;       // output every cycle
+//
+//  startProgramming();
+//  getSignature();
+//  getFuseBytes();
+//
+//  // if we found a signature try to write a bootloader
+//  if (foundSig != -1) {
+//    writeBootloader();
+//  }
+//  //readProgram ();
+//
+//  // release reset
+//  digitalWrite (RESET, HIGH);
+  
   return;
 }
 
@@ -320,7 +382,9 @@ numvar i2cSend(void) {
     Serial.print("--- ");
     Serial.print(" ");
     Serial.print(cmd[0]);
+    Serial.print(cmd[1]);
     Serial.print(cmd[2]);
+    Serial.print(cmd[3]);
     
     for (int i=0; i<len; i++) {
       Serial.print(wireBuffer[i]);
