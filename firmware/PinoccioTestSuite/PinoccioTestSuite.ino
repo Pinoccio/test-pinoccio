@@ -92,17 +92,16 @@ DUT pins used:
 
 
 //#include <serialGLCDlib.h>
+#include "programmer.h"
 #include <Scout.h>
 #include <Wire.h>
-#include <SPI.h>
-#include <avr/pgmspace.h>
 
 const int SLAVE_ADDR = 2;
 
 //serialGLCD lcd(Serial1);
 
 #define POWERSWITCH_SWITCH 3
-// BROKEN: #define VBAT_SWITCH 4
+#define VBAT_SWITCH 4
 #define VUSB_SWITCH 5
 #define MEGA_256RFR2_RESET 6
 #define MEGA_16U2_RESET 7
@@ -120,6 +119,8 @@ bool testFailed = false;
 char wireBuffer[256];
 char* cmd = (char*)malloc(32);
 int ctr = 0;
+
+int foundSig = -1;
 
 
 void sendCommand(const char *cmd, const int responseSize) {
@@ -147,8 +148,7 @@ void setup() {
   } else {
     Serial.println("--- 328 chip ready");
   }
-  //doCommand("i2c.send(\"RD08\")");
-  
+  //doCommand("i2c.send(\"RA07\")");
   
   testJigSetup();
 }
@@ -161,7 +161,7 @@ void loop() {
 void readWire() {
   ctr = 0;
   if (Wire.available()) {
-    Serial.println("Received Wire data");
+    //Serial.println("Received Wire data");
   } else {
     Serial.println("No response from slave");
   }
@@ -185,12 +185,13 @@ void testJigSetup() {
   doCommand("i2c.send(\"WD090\")");
   doCommand("i2c.send(\"WD100\")");
   doCommand("i2c.send(\"WD120\")");
+  doCommand("i2c.send(\"WD170\")");
   
   // disable all switches and chip selects 
   pinMode(POWERSWITCH_SWITCH, OUTPUT);
   digitalWrite(POWERSWITCH_SWITCH, LOW);
-  //pinMode(VBAT_SWITCH, OUTPUT);
-  //digitalWrite(VBAT_SWITCH, LOW);
+  pinMode(VBAT_SWITCH, OUTPUT);
+  digitalWrite(VBAT_SWITCH, LOW);
   pinMode(VUSB_SWITCH, OUTPUT);
   digitalWrite(VUSB_SWITCH, LOW);
   pinMode(MEGA_256RFR2_RESET, OUTPUT);
@@ -229,7 +230,7 @@ void startTest() {
 
   testPower();  
     
-  //flash16U2();
+  flash16U2();
   //flash256RFR2();
 
   //testReset();
@@ -249,57 +250,88 @@ void startTest() {
     RgbLed.red();
   }
   Serial.println("Test complete");
+  testJigSetup();
 }
 
 void testPower() {
   Serial.println("- Test Power -");
-
+  char result[32];
+  
   Serial.println("-- Testing USB Power");
-  digitalWrite(VUSB_SWITCH, HIGH);
-  delay(5000);
+  
   digitalWrite(VUSB_SWITCH, LOW);
-  //Serial.println("-- Testing VBAT Power");
-  //digitalWrite(VBAT_SWITCH, HIGH);
-  //delay(5000);
-  //digitalWrite(VBAT_SWITCH, LOW);
-  Serial.println("-- Testing Power Switch");
-  digitalWrite(POWERSWITCH_SWITCH, HIGH);
-  delay(5000);
-  digitalWrite(POWERSWITCH_SWITCH, LOW);
+  delay(500);
+
+  sendCommandToI2C("RA0", 5);
+  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
+  if (atoi(result) > 512) {
+    Serial.println("FAIL: VUSB should be low, but it's high");
+    testFailed = true;
+  }
+  
+  sendCommandToI2C("RA1", 5);
+  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
+  if (atoi(result) > 512) {
+    Serial.println("FAIL: VBAT should be low, but it's high");
+    testFailed = true;
+  }
+  
+  sendCommandToI2C("RA2", 5);
+  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
+  if (atoi(result) > 512) {
+    Serial.println("FAIL: VCC should be low, but it's high");
+    testFailed = true;
+  }
+  
+  digitalWrite(VUSB_SWITCH, HIGH);
+  delay(500);
+  
+  sendCommandToI2C("RA0", 5);
+  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
+  if (atoi(result) < 1000) {
+    Serial.println("FAIL: VUSB should be high, but it's low");
+    testFailed = true;
+  }
+  
+  sendCommandToI2C("RA1", 5);
+  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
+  if (atoi(result) < 1000) {
+    Serial.println("FAIL: VBAT should be high, but it's low");
+    testFailed = true;
+  }
+  
+  sendCommandToI2C("RA2", 5);
+  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
+  if (atoi(result) < 1000) {
+    Serial.println("FAIL: VCC should be high, but it's low");
+    testFailed = true;
+  }
   
   return;
 }
 
 void flash16U2() {
   Serial.println("- Flash 16U2 -");
+  digitalWrite(VUSB_SWITCH, HIGH);
+  delay(500);
 
-//  digitalWrite(RESET, HIGH);
-//  SPI.begin();
-//
-//  // slow down SPI for benefit of slower processors like the Attiny
-//  SPI.setClockDivider(SPI_CLOCK_DIV8);
-//
-//  pinMode(SCK, OUTPUT);
-//  RESET = MEGA_16U2_RESET;
-//  
-//  // set up Timer 1
-//  TCCR1A = _BV (COM1A0);  // toggle OC1A on Compare Match
-//  TCCR1B = _BV(WGM12) | _BV(CS10);   // CTC, no prescaling
-//  OCR1A =  0;       // output every cycle
-//
-//  startProgramming();
-//  getSignature();
-//  getFuseBytes();
-//
-//  // if we found a signature try to write a bootloader
-//  if (foundSig != -1) {
-//    writeBootloader();
-//  }
-//  //readProgram ();
-//
-//  // release reset
-//  digitalWrite (RESET, HIGH);
+  AVRProgrammer pgm = AVRProgrammer(MEGA_16U2_RESET);
   
+  Serial.println("1");
+  pgm.startProgramming();
+  Serial.println("2");
+  pgm.getSignature();
+  Serial.println("3");
+  pgm.getFuseBytes();
+  Serial.println("4");
+
+  // if we found a signature try to write a bootloader
+  if (foundSig != -1) {
+    pgm.writeBootloader();
+  }
+  //readProgram ();
+
+  pgm.end();
   return;
 }
 
@@ -370,10 +402,15 @@ numvar i2cSend(void) {
   int len = 2;
   strcpy(cmd, (const char*)getstringarg(1));
   if (strncmp((const char*)cmd, "RA", 2) == 0) {
-    len = 4;
+    len = 5;
   }
   
-  sendCommand(cmd, len);
+  return sendCommandToI2C(cmd, len);
+}
+
+int sendCommandToI2C(const char* command, int len) {
+  wireBuffer[0] = 0;
+  sendCommand(command, len);
   readWire();
   if (strncmp((const char*)wireBuffer, ":", 1) != 0) {
     Serial.println("FAIL: Command failed to get a response");
@@ -381,10 +418,10 @@ numvar i2cSend(void) {
   } else {
     Serial.print("--- ");
     Serial.print(" ");
-    Serial.print(cmd[0]);
-    Serial.print(cmd[1]);
-    Serial.print(cmd[2]);
-    Serial.print(cmd[3]);
+    Serial.print(command[0]);
+    Serial.print(command[1]);
+    Serial.print(command[2]);
+    Serial.print(command[3]);
     
     for (int i=0; i<len; i++) {
       Serial.print(wireBuffer[i]);
@@ -392,3 +429,5 @@ numvar i2cSend(void) {
     Serial.println("");
   }
 }
+
+

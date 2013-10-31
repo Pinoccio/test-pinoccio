@@ -6,8 +6,9 @@ Extended: FC
 */
 
 #include <Wire.h>
+#include <stdio.h>
 
-//#define AVR_DEBUG
+#define AVR_DEBUG
 #ifdef AVR_DEBUG
 #  define D(x) x
 #else
@@ -58,7 +59,7 @@ void setup() {
   D(Serial.begin(115200));
   D(Serial.println("Starting up..."));
     
-  for (int i=2; i<12; i++) {
+  for (int i=2; i<22; i++) {
     digitalWrite(i, LOW);
     pinMode(i, INPUT);
   }
@@ -142,20 +143,14 @@ void handshake() {
 void analogPinRead(int pin) {
   D(Serial.print("Read A"));
   D(Serial.println(pin));
+ 
+  uint16_t val = analogRead(pin);
   
-  digitalWrite(pin, LOW);
-  pinMode(pin, INPUT);
-  
-  int val = analogRead(pin);
-  byte buf[3];
-  buf[0] = ':';
-  buf[1] = val >> 8;
-  buf[2] = val & 0xFF;
+  sprintf(output, ":%04u", val);
   
   D(Serial.print("Sending back: "));
-  Serial.write(buf, 2);
-  D(Serial.println());
-  Wire.write(buf, 2);
+  D(Serial.println(output));
+  Wire.write(output);
 }
 
 void digitalPinRead(int pin) {
