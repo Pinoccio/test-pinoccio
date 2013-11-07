@@ -26,30 +26,30 @@
 /*
 
  Copyright 2012 Nick Gammon.
-
-
+ 
+ 
  PERMISSION TO DISTRIBUTE
-
+ 
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  and associated documentation files (the "Software"), to deal in the Software without restriction,
  including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
  and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
  subject to the following conditions:
-
+ 
  The above copyright notice and this permission notice shall be included in
  all copies or substantial portions of the Software.
-
-
+ 
+ 
  LIMITATION OF LIABILITY
-
+ 
  The software is provided "as is", without warranty of any kind, express or implied,
  including but not limited to the warranties of merchantability, fitness for a particular
  purpose and noninfringement. In no event shall the authors or copyright holders be liable
  for any claim, damages or other liability, whether in an action of contract,
  tort or otherwise, arising from, out of or in connection with the software
  or the use or other dealings in the software.
-
-*/
+ 
+ */
 
 #include <SPI.h>
 #include <avr/pgmspace.h>
@@ -57,6 +57,7 @@
 // hex bootloader data
 #include "bootloader_atmega16u2.h"
 #include "bootloader_atmega256rfr2.h"
+#include "flash_atmega256rfr2.h"
 #include "bootloader_attiny13a.h"
 
 // number of items in an array
@@ -64,73 +65,77 @@
 
 // programming commands to send via SPI to the chip
 enum {
-    programEnable = 0xAC,
+  programEnable = 0xAC,
 
-    // writes are preceded by programEnable
-    chipErase = 0x80,
-    writeLockByte = 0xE0,
-    writeLowFuseByte = 0xA0,
-    writeHighFuseByte = 0xA8,
-    writeExtendedFuseByte = 0xA4,
+  // writes are preceded by programEnable
+  chipErase = 0x80,
+  writeLockByte = 0xE0,
+  writeLowFuseByte = 0xA0,
+  writeHighFuseByte = 0xA8,
+  writeExtendedFuseByte = 0xA4,
 
-    pollReady = 0xF0,
+  pollReady = 0xF0,
 
-    programAcknowledge = 0x53,
+  programAcknowledge = 0x53,
 
-    readSignatureByte = 0x30,
-    readCalibrationByte = 0x38,
+  readSignatureByte = 0x30,
+  readCalibrationByte = 0x38,
 
-    readLowFuseByte = 0x50,       readLowFuseByteArg2 = 0x00,
-    readExtendedFuseByte = 0x50,  readExtendedFuseByteArg2 = 0x08,
-    readHighFuseByte = 0x58,      readHighFuseByteArg2 = 0x08,
-    readLockByte = 0x58,          readLockByteArg2 = 0x00,
+  readLowFuseByte = 0x50,       readLowFuseByteArg2 = 0x00,
+  readExtendedFuseByte = 0x50,  readExtendedFuseByteArg2 = 0x08,
+  readHighFuseByte = 0x58,      readHighFuseByteArg2 = 0x08,
+  readLockByte = 0x58,          readLockByteArg2 = 0x00,
 
-    readProgramMemory = 0x20,
-    writeProgramMemory = 0x4C,
-    loadExtendedAddressByte = 0x4D,
-    loadProgramMemory = 0x40,
+  readProgramMemory = 0x20,
+  writeProgramMemory = 0x4C,
+  loadExtendedAddressByte = 0x4D,
+  loadProgramMemory = 0x40,
 
 };
 
 // structure to hold signature and other relevant data about each chip
 typedef struct {
-   byte sig [3];
-   char * desc;
-   unsigned long flashSize;
-   unsigned int baseBootSize;
-   byte * bootloader;
-   unsigned long loaderStart;  // bytes
-   unsigned int loaderLength;  // bytes
-   unsigned long pageSize;     // bytes
-   byte lowFuse, highFuse, extFuse, lockByte;
-   byte timedWrites;    // if pollUntilReady won't work by polling the chip
-} signatureType;
+  byte sig [3];
+  char * desc;
+  unsigned long flashSize;
+  unsigned int baseBootSize;
+  byte * bootloader;
+  unsigned long loaderStart;  // bytes
+  unsigned int loaderLength;  // bytes
+  unsigned long pageSize;     // bytes
+  byte lowFuse, highFuse, extFuse, lockByte;
+  byte timedWrites;    // if pollUntilReady won't work by polling the chip
+} 
+signatureType;
 
 
 const unsigned long kb = 1024;
 
 class AVRProgrammer {
-  public:
-    AVRProgrammer(int reset);
-    void startProgramming();
-    void getSignature();
-    void getFuseBytes();
-    void writeBootloader();
-    void readProgram();
-    void end();
-    
-  protected:
-    byte program(const byte b1, const byte b2 = 0, const byte b3 = 0, const byte b4 = 0);
-    byte readFlash(unsigned long addr);
-    byte writeFlash(unsigned long addr, const byte data);
-    void showYesNo(const boolean b, const boolean newline = false);
-    void pollUntilReady();
-    void commitPage(unsigned long addr);    
-    void writeFuse(const byte newValue, const byte instruction);
-    void showHex(const byte b, const boolean newline = false, const boolean show0x = true);
-    
-    int foundSig;
-    int resetPin;
-    byte lastAddressMSB;
-    byte spiSpeed;
+public:
+  AVRProgrammer(int reset, int clockDivider=SPI_CLOCK_DIV4);
+  void startProgramming();
+  void getSignature();
+  void getFuseBytes();
+  void writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse);
+  void writeProgram(unsigned long loaderStart, const byte *image, const int length);
+  void readProgram();
+  bool foundSignature();
+  void end();
+
+protected:
+  byte program(const byte b1, const byte b2=0, const byte b3=0, const byte b4= 0);
+  byte readFlash(unsigned long addr);
+  byte writeFlash(unsigned long addr, const byte data);
+  void showYesNo(const boolean b, const boolean newline = false);
+  void pollUntilReady();
+  void commitPage(unsigned long addr);    
+  void writeFuse(const byte newValue, const byte instruction);
+  void showHex(const byte b, const boolean newline = false, const boolean show0x = true);
+
+  int foundSig;
+  int resetPin;
+  byte lastAddressMSB;
+  byte spiSpeed;
 };
+

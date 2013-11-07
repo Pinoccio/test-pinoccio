@@ -56,13 +56,13 @@ char* output = (char *)malloc(256);
 char out[8];
  
 void setup() {
+  for (int i=0; i<20; i++) {
+    pinMode(i, OUTPUT);
+    digitalWrite(i, LOW);
+  }
+  
   D(Serial.begin(115200));
   D(Serial.println("Starting up..."));
-    
-  for (int i=2; i<22; i++) {
-    digitalWrite(i, LOW);
-    pinMode(i, INPUT);
-  }
   
   Wire.begin(SLAVE_ADDR);          
   Wire.onReceive(receiveEvent);

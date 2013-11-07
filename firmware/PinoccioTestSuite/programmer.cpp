@@ -65,9 +65,9 @@ signatureType signatures[] =
 {
 //     signature          description   flash size  bootloader size
     { { 0x1E, 0xA8, 0x02 }, "ATmega256RFR2",  256 * kb,   8 * kb,
-    (byte*)atmega256rfr2,// loader image
+    (byte*)atmega256rfr2_bootloader,// loader image
     0x3E000,      // start address
-    sizeof atmega256rfr2,
+    sizeof atmega256rfr2_bootloader,
     256,          // page size (for committing)
     0xFF,         // fuse low byte: external clock, max start-up time
     0xD0,         // fuse high byte: SPI enable, boot into bootloader, 8192 byte bootloader
@@ -78,9 +78,9 @@ signatureType signatures[] =
 // Atmega32U2 family
     { { 0x1E, 0x93, 0x89 }, "ATmega8U2",    8 * kb,   512 },
     { { 0x1E, 0x94, 0x89 }, "ATmega16U2",  16 * kb,   1 * kb,
-    (byte*)atmega16u2,// loader image
+    (byte*)atmega16u2_bootloader,// loader image
     0x0000,      // start address
-    sizeof atmega16u2,
+    sizeof atmega16u2_bootloader,
     64,          // page size (for committing)
     0xEF,         // fuse low byte:
     0xD9,         // fuse high byte:
@@ -108,102 +108,76 @@ signatureType signatures[] =
 };
 
 // if signature found in above table, this is its index
-AVRProgrammer::AVRProgrammer(int reset) {
+AVRProgrammer::AVRProgrammer(int reset, int clockDivider) {
   foundSig = -1;
   resetPin = reset;
   lastAddressMSB = 0;
-  spiSpeed = SPI_CLOCK_DIV8;
  
   digitalWrite(resetPin, HIGH);
   SPI.begin();
-  SPI.setClockDivider(SPI_CLOCK_DIV8);
-  pinMode(SCK, OUTPUT);
-  
+  SPI.setClockDivider(clockDivider);
+  //pinMode(SCK, OUTPUT);
+
   // set up Timer 1
-  TCCR1A = _BV(COM1A0);  // toggle OC1A on Compare Match
-  TCCR1B = _BV(WGM12) | _BV(CS10);   // CTC, no prescaling
-  OCR1A =  0;       // output every cycle
+//  TCCR1A = _BV(COM1A0);  // toggle OC1A on Compare Match
+//  TCCR1B = _BV(WGM12) | _BV(CS10);   // CTC, no prescaling
+//  OCR1A =  0;       // output every cycle
 }
 
-// execute one programming instruction ... b1 is command, b2, b3, b4 are arguments
-//  processor may return a result on the 4th transfer, this is returned.
-byte AVRProgrammer::program(const byte b1, const byte b2, const byte b3, const byte b4) {
-  SPI.transfer(b1);
-  SPI.transfer(b2);
-  SPI.transfer(b3);
-  return SPI.transfer(b4);
+void AVRProgrammer::startProgramming() {
+  byte confirm;
+  pinMode(resetPin, OUTPUT);
+  //pinMode(SCK, OUTPUT);
+
+  // we are in sync if we get back programAcknowledge on the third byte
+  do {
+    delay(100);
+    // ensure SCK low
+    digitalWrite(SCK, LOW);
+    // then pulse reset, see page 309 of datasheet
+    digitalWrite(resetPin, HIGH);
+    delay(1);  // pulse for at least 2 clock cycles
+    digitalWrite(resetPin, LOW);
+    delay(25);  // wait at least 20 mS
+    SPI.transfer(programEnable);
+    SPI.transfer(programAcknowledge);
+    confirm = SPI.transfer(0);
+    SPI.transfer(0);
+  } while (confirm != programAcknowledge);
+  Serial.println("Entered programming mode OK.");
 }
 
-// read a byte from flash memory
-byte AVRProgrammer::readFlash(unsigned long addr) {
-  byte high = (addr & 1) ? 0x08 : 0;  // set if high byte wanted
-  addr >>= 1;  // turn into word address
+void AVRProgrammer::getSignature() {
+  foundSig = -1;
+  lastAddressMSB = 0;
 
-  // set the extended (most significant) address byte if necessary
-  byte MSB = (addr >> 16) & 0xFF;
-  if (MSB != lastAddressMSB) {
-    program (loadExtendedAddressByte, 0, MSB);
-    lastAddressMSB = MSB;
+  byte sig[3];
+  Serial.print("Signature = ");
+  for (byte i = 0; i < 3; i++) {
+    sig[i] = program(readSignatureByte, 0, i);
+    showHex(sig[i]);
+  }  // end for each signature byte
+  Serial.println();
+
+  for (int j = 0; j < NUMITEMS(signatures); j++) {
+    if (memcmp(sig, signatures[j].sig, sizeof sig) == 0) {
+      foundSig = j;
+      Serial.print("Processor = ");
+      Serial.println(signatures[j].desc);
+      Serial.print("Flash memory size = ");
+      Serial.print(signatures[j].flashSize, DEC);
+      Serial.println(" bytes.");
+      if (signatures[foundSig].timedWrites) {
+        Serial.print("Writes are timed, not polled.");
+      }
+      if (strncmp(signatures[j].desc, "ATtiny", 6) == 0) {
+        SPI.setClockDivider(SPI_CLOCK_DIV64); // slow down SPI for the tinys
+      }
+      return;
+    }
   }
 
-  return program (readProgramMemory | high, highByte (addr), lowByte (addr));
-}
-
-// write a byte to the flash memory buffer (ready for committing)
-byte AVRProgrammer::writeFlash(unsigned long addr, const byte data) {
-  byte high = (addr & 1) ? 0x08 : 0;  // set if high byte wanted
-  addr >>= 1;  // turn into word address
-  program (loadProgramMemory | high, 0, lowByte (addr), data);
-}
-
-// convert a boolean to Yes/No
-void AVRProgrammer::showYesNo(const boolean b, const boolean newline) {
-  if (b) {
-    Serial.print("Yes");
-  }
-  else {
-    Serial.print("No");
-  }
-  if (newline) {
-    Serial.println();
-  }
-}
-
-// poll the target device until it is ready to be programmed
-void AVRProgrammer::pollUntilReady() {
-  if (signatures [foundSig].timedWrites) {
-    delay (10);  // at least 2 x WD_FLASH which is 4.5 mS
-  } else {
-    while ((program(pollReady) & 1) == 1) {}  // wait till ready
-  }
-}
-
-// commit page
-void AVRProgrammer::commitPage(unsigned long addr) {
-  //Serial.print("Committing page starting at 0x");
-  //Serial.print(addr, HEX);
-
-  addr >>= 1;  // turn into word address
-
-  // set the extended (most significant) address byte if necessary
-  byte MSB = (addr >> 16) & 0xFF;
-  if (MSB != lastAddressMSB) {
-    program (loadExtendedAddressByte, 0, MSB);
-    lastAddressMSB = MSB;
-  }
-
-  program(writeProgramMemory, highByte (addr), lowByte (addr));
-  pollUntilReady();
-}
-
-// write specified value to specified fuse/lock byte
-void AVRProgrammer::writeFuse(const byte newValue, const byte instruction) {
-  if (newValue == 0) {
-    return;  // ignore
-  }
-
-  program(programEnable, instruction, 0, newValue);
-  pollUntilReady();
+  Serial.print("Unrecogized signature.");
 }
 
 void AVRProgrammer::getFuseBytes() {
@@ -219,10 +193,61 @@ void AVRProgrammer::getFuseBytes() {
   showHex(program(readCalibrationByte), true);
 }
 
-// burn the bootloader to the target device
-void AVRProgrammer::writeBootloader() {
+void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse) {
+  Serial.println("Writing fuses ...");
 
-  if (signatures[foundSig].bootloader == 0) {
+  writeFuse(lowFuse, writeLowFuseByte);
+  if (program(readLowFuseByte, readLowFuseByteArg2) != lowFuse) {
+   Serial.print("Low fuse failed to write. Expected ");
+   showHex(lowFuse, false, true);
+   Serial.print("Got ");
+   showHex(program(readLowFuseByte, readLowFuseByteArg2));
+   Serial.println();
+  } else {
+    Serial.println("Successfully wrote low fuse");
+  }
+  
+  writeFuse(highFuse, writeHighFuseByte);
+  if (program(readHighFuseByte, readHighFuseByteArg2) != highFuse) {
+   Serial.print("High fuse failed to write. Expected ");
+   showHex(highFuse, false, true);
+   Serial.print("Got ");
+   showHex(program(readHighFuseByte, readHighFuseByteArg2));
+   Serial.println();
+  } else {
+    Serial.println("Successfully wrote high fuse");
+  }
+  
+  writeFuse(extendedFuse, writeExtendedFuseByte);
+  if (program(readExtendedFuseByte, readExtendedFuseByteArg2) != extendedFuse) {
+   Serial.print("Extended fuse failed to write. Expected ");
+   showHex(extendedFuse, false, true);
+   Serial.print("Got ");
+   showHex(program(readExtendedFuseByte, readExtendedFuseByteArg2));
+   Serial.println();
+  } else {
+    Serial.println("Successfully wrote extended fuse");
+  }
+  
+  writeFuse(lockFuse, writeLockByte);
+  if (program(readLockByte, readLockByteArg2) != lockFuse) {
+   Serial.print("Lock fuse failed to write. Expected ");
+   showHex(lockFuse, false, true);
+   Serial.print("Got ");
+   showHex(program(lockFuse, readLockByteArg2));
+   Serial.println();
+  } else {
+    Serial.println("Successfully wrote lock fuse");
+  }
+
+  // confirm them
+  getFuseBytes();
+}
+
+// burn the bootloader to the target device
+void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, const int length) {
+
+  if (image == 0) {
     Serial.println("No bootloader support for this device.");
     return;
   }
@@ -235,12 +260,12 @@ void AVRProgrammer::writeBootloader() {
   byte newextFuse = signatures[foundSig].extFuse;
   byte newlockByte = signatures[foundSig].lockByte;
 
-  unsigned long addr = signatures[foundSig].loaderStart;
-  unsigned int  len = signatures[foundSig].loaderLength;
+  //unsigned long addr = signatures[foundSig].loaderStart;
+  unsigned long addr = loaderStart;
+  unsigned int  len = length;
   unsigned long pagesize = signatures[foundSig].pageSize;
   unsigned long pagemask = ~(pagesize - 1);
-  byte * bootloader = signatures[foundSig].bootloader;
-
+  const byte * flash = image;
 
   Serial.print("Bootloader page size = ");
   Serial.println(pagesize);
@@ -254,19 +279,12 @@ void AVRProgrammer::writeBootloader() {
 
   unsigned long oldPage = addr & pagemask;
 
-  Serial.println("Type 'V' to verify, or 'G' to program the chip with the bootloader ...");
-  char command;
-  do {
-    command = toupper(Serial.read());
-  } while (command != 'G' && command != 'V');
-
-  if (command == 'G') {
-    Serial.println("Erasing chip ...");
+    Serial.println("Erasing chip...");
     program(programEnable, chipErase);   // erase it
     delay(20);  // for Atmega8
     pollUntilReady();
-    Serial.println("Writing bootloader ...");
-
+    Serial.println("Writing program...");
+      
     for (i = 0; i < len; i += 2) {
       unsigned long thisPage = (addr + i) & pagemask;
       // page changed? commit old one
@@ -274,8 +292,8 @@ void AVRProgrammer::writeBootloader() {
         commitPage(oldPage);
         oldPage = thisPage;
       }
-      writeFlash(addr + i, pgm_read_byte(bootloader + i));
-      writeFlash(addr + i + 1, pgm_read_byte(bootloader + i + 1));
+      writeFlash(addr + i, pgm_read_byte(flash + i));
+      writeFlash(addr + i + 1, pgm_read_byte(flash + i + 1));
       /*
       Serial.print("Wrote to address ");
       showHex(addr + i);
@@ -290,10 +308,9 @@ void AVRProgrammer::writeBootloader() {
       */
     }  // end while doing each word
 
-    // commit final page
-    commitPage(oldPage);
-    Serial.println("Written.");
-  }
+  // commit final page
+  commitPage(oldPage);
+  Serial.println("Written.");
 
   Serial.println("Verifying ...");
 
@@ -301,14 +318,14 @@ void AVRProgrammer::writeBootloader() {
   unsigned int errors = 0;
   
   // check each byte
-  for (i = 0; i < signatures[foundSig].loaderLength; i++) {
+  for (i = 0; i < len; i++) {
     byte found = readFlash(addr + i);
-    byte expected = pgm_read_byte(bootloader + i);
+    byte expected = pgm_read_byte(flash + i);
     if (found != expected) {
       if (errors <= 100) {
         Serial.print("Verification error at address ");
-        Serial.print(addr + i, HEX);
-        Serial.print(". Got: ");
+        showHex(addr + i, false, true);
+        Serial.print(": Got: ");
         showHex(found);
         Serial.print(" Expected: ");
         showHex(expected, true);
@@ -327,79 +344,7 @@ void AVRProgrammer::writeBootloader() {
     }
     //return;  // don't change fuses if errors
   }
-
-  if (command == 'G') {
-    Serial.print("Writing fuses ...");
-
-    writeFuse(newlFuse, writeLowFuseByte);
-    writeFuse(newhFuse, writeHighFuseByte);
-    writeFuse(newextFuse, writeExtendedFuseByte);
-    writeFuse(newlockByte, writeLockByte);
-
-    // confirm them
-    getFuseBytes();
-  }
-
   Serial.print("Done.");
-}
-
-
-void AVRProgrammer::startProgramming() {
-  byte confirm;
-  pinMode(resetPin, OUTPUT);
-  pinMode(SCK, OUTPUT);
-  Serial.println("1:1");
-  Serial.println(resetPin);
-  // we are in sync if we get back programAcknowledge on the third byte
-  do {
-    delay(100);
-    // ensure SCK low
-    digitalWrite(SCK, LOW);
-    // then pulse reset, see page 309 of datasheet
-    digitalWrite(resetPin, HIGH);
-    delay(1);  // pulse for at least 2 clock cycles
-    digitalWrite(resetPin, LOW);
-    delay(25);  // wait at least 20 mS
-    SPI.transfer(programEnable);
-    SPI.transfer(programAcknowledge);
-    confirm = SPI.transfer(0);
-    SPI.transfer(0);
-  } while (confirm != programAcknowledge);
-  Serial.println("1:2");
-  Serial.print("Entered programming mode OK.");
-}
-
-void AVRProgrammer::getSignature() {
-  foundSig = -1;
-  lastAddressMSB = 0;
-
-  byte sig[3];
-  Serial.print("Signature = ");
-  for (byte i = 0; i < 3; i++) {
-    sig[i] = program(readSignatureByte, 0, i);
-    showHex(sig[i]);
-  }  // end for each signature byte
-  Serial.println();
-
-  for (int j = 0; j < NUMITEMS (signatures); j++) {
-    if (memcmp(sig, signatures [j].sig, sizeof sig) == 0) {
-      foundSig = j;
-      Serial.print("Processor = ");
-      Serial.print(signatures[j].desc);
-      Serial.print("Flash memory size = ");
-      Serial.print(signatures[j].flashSize, DEC);
-      Serial.print(" bytes.");
-      if (signatures[foundSig].timedWrites) {
-        Serial.print("Writes are timed, not polled.");
-      }
-      if (strncmp(signatures[j].desc, "ATtiny", 6) == 0) {
-        SPI.setClockDivider(SPI_CLOCK_DIV64); // slow down SPI for the tinys
-      }
-      return;
-    }
-  }
-
-  Serial.print("Unrecogized signature.");
 }
 
 void AVRProgrammer::readProgram() {
@@ -426,6 +371,91 @@ void AVRProgrammer::readProgram() {
 
 void AVRProgrammer::end() {
   digitalWrite(resetPin, HIGH);
+}
+
+bool AVRProgrammer::foundSignature() {
+  return foundSig;
+}
+
+// execute one programming instruction ... b1 is command, b2, b3, b4 are arguments
+//  processor may return a result on the 4th transfer, this is returned.
+byte AVRProgrammer::program(const byte b1, const byte b2, const byte b3, const byte b4) {
+  SPI.transfer(b1);
+  SPI.transfer(b2);
+  SPI.transfer(b3);
+  return SPI.transfer(b4);
+}
+
+// read a byte from flash memory
+byte AVRProgrammer::readFlash(unsigned long addr) {
+  byte high = (addr & 1) ? 0x08 : 0;  // set if high byte wanted
+  addr >>= 1;  // turn into word address
+
+  // set the extended (most significant) address byte if necessary
+  byte MSB = (addr >> 16) & 0xFF;
+  if (MSB != lastAddressMSB) {
+    program(loadExtendedAddressByte, 0, MSB);
+    lastAddressMSB = MSB;
+  }
+
+  return program(readProgramMemory | high, highByte (addr), lowByte (addr));
+}
+
+// write a byte to the flash memory buffer (ready for committing)
+byte AVRProgrammer::writeFlash(unsigned long addr, const byte data) {
+  byte high = (addr & 1) ? 0x08 : 0;  // set if high byte wanted
+  addr >>= 1;  // turn into word address
+  program (loadProgramMemory | high, 0, lowByte (addr), data);
+}
+
+// convert a boolean to Yes/No
+void AVRProgrammer::showYesNo(const boolean b, const boolean newline) {
+  if (b) {
+    Serial.print("Yes");
+  }
+  else {
+    Serial.print("No");
+  }
+  if (newline) {
+    Serial.println();
+  }
+}
+
+// poll the target device until it is ready to be programmed
+void AVRProgrammer::pollUntilReady() {
+  if (signatures[foundSig].timedWrites) {
+    delay (10);  // at least 2 x WD_FLASH which is 4.5 mS
+  } else {
+    while ((program(pollReady) & 1) == 1) {}  // wait till ready
+  }
+}
+
+// commit page
+void AVRProgrammer::commitPage(unsigned long addr) {
+  //Serial.print("Committing page starting at 0x");
+  //Serial.print(addr, HEX);
+
+  addr >>= 1;  // turn into word address
+
+  // set the extended (most significant) address byte if necessary
+  byte MSB = (addr >> 16) & 0xFF;
+  if (MSB != lastAddressMSB) {
+    program (loadExtendedAddressByte, 0, MSB);
+    lastAddressMSB = MSB;
+  }
+
+  program(writeProgramMemory, highByte(addr), lowByte(addr));
+  pollUntilReady();
+}
+
+// write specified value to specified fuse/lock byte
+void AVRProgrammer::writeFuse(const byte newValue, const byte instruction) {
+  if (newValue == 0) {
+    return;  // ignore
+  }
+
+  program(programEnable, instruction, 0, newValue);
+  pollUntilReady();
 }
 
 // show a byte in hex with leading zero and optional newline
