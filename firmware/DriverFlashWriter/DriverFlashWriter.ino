@@ -35,6 +35,7 @@ void setup() {
   }
   Serial.println("--- Serial flash chip found");
   
+  //DriverFlash.bulkErase(); 
   // Store flash hex in sector 4 (0x40000 - 0x4F000, 61,440 bytes)
   Serial.println("--- Erasing sector 0x40000");
   DriverFlash.sectorErase(addr); 

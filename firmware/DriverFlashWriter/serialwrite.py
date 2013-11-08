@@ -4,7 +4,7 @@ import os
 import binascii
 import sys
 
-filename = "atmega256rfr2_flash.hex"
+filename = "scout-trunc.hex"
 	
 print "Connecting to serial"
 ser = serial.Serial("/dev/tty.usbmodemfa131", 115200, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, 5)
