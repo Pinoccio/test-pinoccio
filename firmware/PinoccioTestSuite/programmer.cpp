@@ -294,18 +294,6 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
       }
       writeFlash(addr + i, pgm_read_byte(flash + i));
       writeFlash(addr + i + 1, pgm_read_byte(flash + i + 1));
-      /*
-      Serial.print("Wrote to address ");
-      showHex(addr + i);
-      Serial.print(": ");
-      showHex(pgm_read_byte(bootloader + i));
-      Serial.println("");
-      Serial.print("Wrote to address ");
-      showHex(addr + i + 1);
-      Serial.print(": ");
-      showHex(pgm_read_byte(bootloader + i + 1));
-      Serial.println("");
-      */
     }  // end while doing each word
 
   // commit final page
@@ -347,6 +335,123 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
   Serial.print("Done.");
 }
 
+void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length) {
+  uint32_t i;
+  byte lFuse = program(readLowFuseByte, readLowFuseByteArg2);
+
+  byte newlFuse = signatures[foundSig].lowFuse;
+  byte newhFuse = signatures[foundSig].highFuse;
+  byte newextFuse = signatures[foundSig].extFuse;
+  byte newlockByte = signatures[foundSig].lockByte;
+
+  //unsigned long addr = signatures[foundSig].loaderStart;
+  uint32_t addr = loaderStart;
+  uint32_t  len = length;
+  uint32_t pagesize = signatures[foundSig].pageSize;
+  uint32_t pagemask = ~(pagesize - 1);
+  
+  int timesThrough = 0;
+  uint16_t bufCtr = 0;
+  uint16_t verifyCtr = 0;
+  uint16_t bufLen = 16384;
+  byte flashBuffer[bufLen];
+  
+  // count errors
+  unsigned int errors = 0;
+  
+  Serial.print("Bootloader page size = ");
+  Serial.println(pagesize);
+  Serial.print("Bootloader address = 0x");
+  Serial.println(addr, HEX);
+  Serial.print("Bootloader length = ");
+  Serial.print(len);
+  Serial.println(" bytes");
+
+  byte subcommand = 'U';
+
+  unsigned long oldPage = addr & pagemask;
+  unsigned long thisPage;
+
+  Serial.println("Writing program...");
+  
+  for (i = 0; i < len; i+=2, bufCtr+=2) {
+    
+    thisPage = (addr + i) & pagemask;
+    // page changed? commit old one
+    if (thisPage != oldPage) {
+      commitPage(oldPage);
+      oldPage = thisPage;
+    }
+    
+    if (i % bufLen == 0) {
+      // read new chunk of bytes into buffer
+      bufCtr = 0;
+      flash->read(flashAddress + i, &flashBuffer, bufLen);
+      startProgramming();
+      delay(100);
+      timesThrough++;
+      Serial.print("Writing ");
+      if ((timesThrough * bufLen) > len) {
+        Serial.print(len);
+      } else {
+        Serial.print(timesThrough * bufLen);
+      }
+      Serial.print(" bytes of a total of ");
+      Serial.println(len);
+    }
+
+    writeFlash(addr + i, flashBuffer[bufCtr]);
+    writeFlash(addr + i + 1, flashBuffer[bufCtr + 1]);
+  }  // end while doing each word
+
+  // commit final page
+  commitPage(oldPage);
+
+  Serial.println("Written.");
+ 
+  // check each byte
+  for (i = 0; i < len; i++, bufCtr++) {
+    if (i % bufLen == 0) {
+      bufCtr = 0;
+      flash->read(flashAddress + i, &flashBuffer, bufLen);
+      startProgramming();
+      delay(100);
+    }
+    if (i >= 0xF00 && i <= 0xF0A) {
+      Serial.print("Reading ");
+      showHex(flashBuffer[bufCtr], false, true);
+      Serial.print("from address 0x");
+      Serial.println(flashAddress + i, HEX);
+    }
+    
+    byte found = readFlash(addr + i);
+    if (found != flashBuffer[bufCtr]) {
+      if (errors <= 10) {
+        Serial.print("Verification error at address 0x");
+        Serial.print(addr + i, HEX);
+        Serial.print(": Got: ");
+        showHex(found, false, true);
+        Serial.print("Expected: ");
+        showHex(flashBuffer[bufCtr], false, true);
+        Serial.println(bufCtr);
+      }
+      errors++;
+    }
+  }
+
+  if (errors == 0) {
+    Serial.println("No errors found.");
+  } else {
+    Serial.print(errors, DEC);
+    Serial.println(" verification error(s).");
+    if (errors > 100) {
+      Serial.print("First 100 shown.");
+    }
+    //return;  // don't change fuses if errors
+  }
+  Serial.print("Done.");
+}
+
 void AVRProgrammer::readProgram() {
   unsigned long addr = 0;
   unsigned int  len = 256;
@@ -367,6 +472,13 @@ void AVRProgrammer::readProgram() {
     }
   }
   Serial.println();
+}
+
+void AVRProgrammer::eraseChip() {
+  Serial.println("Erasing chip...");
+  program(programEnable, chipErase);   // erase it
+  delay(20);  // for Atmega8
+  pollUntilReady();
 }
 
 void AVRProgrammer::end() {

@@ -53,11 +53,11 @@
 
 #include <SPI.h>
 #include <avr/pgmspace.h>
+#include "utility/Flash.h"
 
 // hex bootloader data
 #include "bootloader_atmega16u2.h"
 #include "bootloader_atmega256rfr2.h"
-#include "flash_atmega256rfr2.h"
 #include "bootloader_attiny13a.h"
 
 // number of items in an array
@@ -119,7 +119,9 @@ public:
   void getFuseBytes();
   void writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse);
   void writeProgram(unsigned long loaderStart, const byte *image, const int length);
+  void writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length);
   void readProgram();
+  void eraseChip();
   bool foundSignature();
   void end();
 
