@@ -279,22 +279,18 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
 
   unsigned long oldPage = addr & pagemask;
 
-    Serial.println("Erasing chip...");
-    program(programEnable, chipErase);   // erase it
-    delay(20);  // for Atmega8
-    pollUntilReady();
-    Serial.println("Writing program...");
-      
-    for (i = 0; i < len; i += 2) {
-      unsigned long thisPage = (addr + i) & pagemask;
-      // page changed? commit old one
-      if (thisPage != oldPage) {
-        commitPage(oldPage);
-        oldPage = thisPage;
-      }
-      writeFlash(addr + i, pgm_read_byte(flash + i));
-      writeFlash(addr + i + 1, pgm_read_byte(flash + i + 1));
-    }  // end while doing each word
+  Serial.println("Writing program...");
+    
+  for (i = 0; i < len; i += 2) {
+    unsigned long thisPage = (addr + i) & pagemask;
+    // page changed? commit old one
+    if (thisPage != oldPage) {
+      commitPage(oldPage);
+      oldPage = thisPage;
+    }
+    writeFlash(addr + i, pgm_read_byte(flash + i));
+    writeFlash(addr + i + 1, pgm_read_byte(flash + i + 1));
+  }  // end while doing each word
 
   // commit final page
   commitPage(oldPage);
@@ -336,15 +332,8 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
 }
 
 void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length) {
+  
   uint32_t i;
-  byte lFuse = program(readLowFuseByte, readLowFuseByteArg2);
-
-  byte newlFuse = signatures[foundSig].lowFuse;
-  byte newhFuse = signatures[foundSig].highFuse;
-  byte newextFuse = signatures[foundSig].extFuse;
-  byte newlockByte = signatures[foundSig].lockByte;
-
-  //unsigned long addr = signatures[foundSig].loaderStart;
   uint32_t addr = loaderStart;
   uint32_t  len = length;
   uint32_t pagesize = signatures[foundSig].pageSize;
@@ -370,13 +359,12 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   byte subcommand = 'U';
 
   unsigned long oldPage = addr & pagemask;
-  unsigned long thisPage;
 
   Serial.println("Writing program...");
   
-  for (i = 0; i < len; i+=2, bufCtr+=2) {
+  for (i = 0; i < len; i+=2, bufCtr+=2) { 
     
-    thisPage = (addr + i) & pagemask;
+    unsigned long thisPage = (addr + i) & pagemask;
     // page changed? commit old one
     if (thisPage != oldPage) {
       commitPage(oldPage);
@@ -388,7 +376,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
       bufCtr = 0;
       flash->read(flashAddress + i, &flashBuffer, bufLen);
       startProgramming();
-      delay(100);
+      delay(10);
       timesThrough++;
       Serial.print("Writing ");
       if ((timesThrough * bufLen) > len) {
@@ -417,13 +405,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
       startProgramming();
       delay(100);
     }
-    if (i >= 0xF00 && i <= 0xF0A) {
-      Serial.print("Reading ");
-      showHex(flashBuffer[bufCtr], false, true);
-      Serial.print("from address 0x");
-      Serial.println(flashAddress + i, HEX);
-    }
-    
+
     byte found = readFlash(addr + i);
     if (found != flashBuffer[bufCtr]) {
       if (errors <= 10) {
@@ -447,25 +429,24 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
     if (errors > 100) {
       Serial.print("First 100 shown.");
     }
-    //return;  // don't change fuses if errors
   }
   Serial.print("Done.");
 }
 
-void AVRProgrammer::readProgram() {
-  unsigned long addr = 0;
-  unsigned int  len = 256;
+void AVRProgrammer::readProgram(uint32_t address, uint32_t length) {
   Serial.println();
-  Serial.print("First 256 bytes of program memory:");
-  Serial.println();
+  Serial.print("Reading ");
+  Serial.print(length);
+  Serial.print(" bytes of program memory starting at address 0x");
+  Serial.println(address, HEX);
 
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     // show address
     if (i % 16 == 0) {
-      Serial.print(addr + i, HEX);
+      Serial.print(address + i, HEX);
       Serial.print(": ");
     }
-    showHex(readFlash(addr + i));
+    showHex(readFlash(address + i));
     // new line every 16 bytes
     if (i % 16 == 15) {
       Serial.println();
@@ -517,6 +498,17 @@ byte AVRProgrammer::readFlash(unsigned long addr) {
 byte AVRProgrammer::writeFlash(unsigned long addr, const byte data) {
   byte high = (addr & 1) ? 0x08 : 0;  // set if high byte wanted
   addr >>= 1;  // turn into word address
+  Serial.println("writeFlash: ");
+  Serial.print("high byte: ");
+  Serial.println(high);
+  Serial.print("low byte: ");
+  Serial.println(lowByte(addr));
+  Serial.print("sending the following command: 0x");
+  Serial.print(loadProgramMemory | high, HEX);
+  Serial.print(", 0, 0x");
+  Serial.print(lowByte(addr), HEX);
+  Serial.print(", 0x");
+  Serial.println(data, HEX);
   program (loadProgramMemory | high, 0, lowByte (addr), data);
 }
 
@@ -555,6 +547,14 @@ void AVRProgrammer::commitPage(unsigned long addr) {
     program (loadExtendedAddressByte, 0, MSB);
     lastAddressMSB = MSB;
   }
+  
+  Serial.println("commitPage: ");
+  Serial.print("sending the following command: 0x");
+  Serial.print(writeProgramMemory, HEX);
+  Serial.print(", 0, 0x");
+  Serial.print(highByte(addr), HEX);
+  Serial.print(", 0x");
+  Serial.println(lowByte(addr), HEX);
 
   program(writeProgramMemory, highByte(addr), lowByte(addr));
   pollUntilReady();

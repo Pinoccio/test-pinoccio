@@ -117,16 +117,16 @@ public:
   void startProgramming();
   void getSignature();
   void getFuseBytes();
-  void writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse);
+  void writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse=0xFF);
   void writeProgram(unsigned long loaderStart, const byte *image, const int length);
   void writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length);
-  void readProgram();
+  void readProgram(uint32_t address, uint32_t length);
   void eraseChip();
   bool foundSignature();
   void end();
 
 protected:
-  byte program(const byte b1, const byte b2=0, const byte b3=0, const byte b4= 0);
+  byte program(const byte b1, const byte b2=0, const byte b3=0, const byte b4=0);
   byte readFlash(unsigned long addr);
   byte writeFlash(unsigned long addr, const byte data);
   void showYesNo(const boolean b, const boolean newline = false);
