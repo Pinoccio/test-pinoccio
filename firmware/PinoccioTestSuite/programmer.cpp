@@ -55,11 +55,6 @@ or the use or other dealings in the software.
 #include <avr/pgmspace.h>
 #include "programmer.h"
 
-// const byte VUSB_SWITCH = 5;
-// const byte MEGA_256RFR2_RESET = 6;
-// const byte MEGA_16U2_RESET = 7;
-// const byte DRIVER_FLASH_CS = SS;
-
 // see Atmega datasheet for values
 signatureType signatures[] =
 {
@@ -116,22 +111,14 @@ AVRProgrammer::AVRProgrammer(int reset, int clockDivider) {
   digitalWrite(resetPin, HIGH);
   SPI.begin();
   SPI.setClockDivider(clockDivider);
-  //pinMode(SCK, OUTPUT);
-
-  // set up Timer 1
-//  TCCR1A = _BV(COM1A0);  // toggle OC1A on Compare Match
-//  TCCR1B = _BV(WGM12) | _BV(CS10);   // CTC, no prescaling
-//  OCR1A =  0;       // output every cycle
 }
 
 void AVRProgrammer::startProgramming() {
   byte confirm;
   pinMode(resetPin, OUTPUT);
-  //pinMode(SCK, OUTPUT);
 
   // we are in sync if we get back programAcknowledge on the third byte
   do {
-    delay(100);
     // ensure SCK low
     digitalWrite(SCK, LOW);
     // then pulse reset, see page 309 of datasheet
@@ -145,6 +132,8 @@ void AVRProgrammer::startProgramming() {
     SPI.transfer(0);
   } while (confirm != programAcknowledge);
   Serial.println("Entered programming mode OK.");
+  
+  // we must set extended address byte to 0 to start, otherwise our writes start at 128k, not 0
   program(loadExtendedAddressByte, 0, lastAddressMSB);
 }
 
@@ -157,7 +146,7 @@ void AVRProgrammer::getSignature() {
   for (byte i = 0; i < 3; i++) {
     sig[i] = program(readSignatureByte, 0, i);
     showHex(sig[i]);
-  }  // end for each signature byte
+  } 
   Serial.println();
 
   for (int j = 0; j < NUMITEMS(signatures); j++) {
@@ -340,7 +329,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   uint32_t pagesize = signatures[foundSig].pageSize;
   uint32_t pagemask = ~(pagesize - 1);
   
-  int timesThrough = 0;
+  uint32_t timesThrough = 0;
   uint16_t bufCtr = 0;
   uint16_t verifyCtr = 0;
   uint16_t bufLen = 16384;
@@ -363,7 +352,8 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
 
   Serial.println("Writing program...");
   
-  for (i = 0; i < len; i+=2, bufCtr+=2) { 
+  // load each word
+  for (i=0; i<len; i+=2, bufCtr+=2) { 
     
     unsigned long thisPage = (addr + i) & pagemask;
     // page changed? commit old one
@@ -377,7 +367,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
       bufCtr = 0;
       flash->read(flashAddress + i, &flashBuffer, bufLen);
       startProgramming();
-      delay(10);
+      
       timesThrough++;
       Serial.print("Writing ");
       if ((timesThrough * bufLen) > len) {
@@ -391,7 +381,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
 
     writeFlash(addr + i, flashBuffer[bufCtr]);
     writeFlash(addr + i + 1, flashBuffer[bufCtr + 1]);
-  }  // end while doing each word
+  }
 
   // commit final page
   commitPage(oldPage);
@@ -399,12 +389,13 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   Serial.println("Written.");
  
   // check each byte
-  for (i = 0; i < len; i++, bufCtr++) {
+  for (i=0; i<len; i++, bufCtr++) {
     if (i % bufLen == 0) {
+      Serial.print("Verifying flash at address: 0x");
+      Serial.println(loaderStart + i, HEX);
       bufCtr = 0;
       flash->read(flashAddress + i, &flashBuffer, bufLen);
       startProgramming();
-      delay(100);
     }
 
     byte found = readFlash(addr + i);
@@ -458,8 +449,8 @@ void AVRProgrammer::readProgram(uint32_t address, uint32_t length) {
 
 void AVRProgrammer::eraseChip() {
   Serial.println("Erasing chip...");
-  program(programEnable, chipErase);   // erase it
-  delay(20);  // for Atmega8
+  program(programEnable, chipErase);   
+  //delay(20);  // for Atmega8
   pollUntilReady();
 }
 

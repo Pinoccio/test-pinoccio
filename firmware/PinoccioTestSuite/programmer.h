@@ -108,7 +108,6 @@ typedef struct {
 } 
 signatureType;
 
-
 const unsigned long kb = 1024;
 
 class AVRProgrammer {

@@ -314,7 +314,7 @@ void flash16U2() {
   digitalWrite(VUSB_SWITCH, HIGH);
   delay(500);
   
-  AVRProgrammer pgm = AVRProgrammer(MEGA_16U2_RESET, SPI_CLOCK_DIV16);
+  AVRProgrammer pgm = AVRProgrammer(MEGA_16U2_RESET, SPI_CLOCK_DIV32);
   pgm.startProgramming();
   pgm.getSignature();
   pgm.getFuseBytes();
@@ -351,24 +351,15 @@ void flash256RFR2() {
   if (pgm.foundSignature() != -1) {
     pgm.eraseChip();
     pgm.writeFuseBytes(0xFF, 0xD0, 0xFE);
+    pgm.writeProgram(0x3E000, atmega256rfr2_bootloader, sizeof(atmega256rfr2_bootloader));
   } else {
     testFailed = true;
   }
 
   pgm.end();
   
-  pgm = AVRProgrammer(MEGA_256RFR2_RESET, SPI_CLOCK_DIV8);
-  pgm.startProgramming();
-  pgm.getSignature();
-  
-  // if we found a signature try to write a bootloader
-  if (pgm.foundSignature() != -1) {
-    pgm.writeProgram(0x3E000, atmega256rfr2_bootloader, sizeof(atmega256rfr2_bootloader));
-  } else {
-    testFailed = true;
-  }
- 
   Serial.println("-- writing sketch");
+  pgm = AVRProgrammer(MEGA_256RFR2_RESET, SPI_CLOCK_DIV8);
   pgm.startProgramming();
   pgm.getSignature();
   
