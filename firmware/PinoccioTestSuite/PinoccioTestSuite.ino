@@ -230,7 +230,7 @@ void startTest() {
   
   //testPower();  
     
-  //flash16U2();
+  flash16U2();
   flash256RFR2();
 
   //testReset();
@@ -345,7 +345,7 @@ void flash256RFR2() {
 
   //pgm.readProgram(0x0000, 100);
   //return;
-/*  
+  
   Serial.println("-- writing fuses");
   // if we found a signature try to write fuses
   if (pgm.foundSignature() != -1) {
@@ -367,7 +367,7 @@ void flash256RFR2() {
   } else {
     testFailed = true;
   }
-  */  
+ 
   Serial.println("-- writing sketch");
   pgm.startProgramming();
   pgm.getSignature();

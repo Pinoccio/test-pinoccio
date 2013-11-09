@@ -145,6 +145,7 @@ void AVRProgrammer::startProgramming() {
     SPI.transfer(0);
   } while (confirm != programAcknowledge);
   Serial.println("Entered programming mode OK.");
+  program(loadExtendedAddressByte, 0, lastAddressMSB);
 }
 
 void AVRProgrammer::getSignature() {
@@ -498,17 +499,17 @@ byte AVRProgrammer::readFlash(unsigned long addr) {
 byte AVRProgrammer::writeFlash(unsigned long addr, const byte data) {
   byte high = (addr & 1) ? 0x08 : 0;  // set if high byte wanted
   addr >>= 1;  // turn into word address
-  Serial.println("writeFlash: ");
-  Serial.print("high byte: ");
-  Serial.println(high);
-  Serial.print("low byte: ");
-  Serial.println(lowByte(addr));
-  Serial.print("sending the following command: 0x");
-  Serial.print(loadProgramMemory | high, HEX);
-  Serial.print(", 0, 0x");
-  Serial.print(lowByte(addr), HEX);
-  Serial.print(", 0x");
-  Serial.println(data, HEX);
+//  Serial.println("writeFlash: ");
+//  Serial.print("high byte: ");
+//  Serial.println(high);
+//  Serial.print("low byte: ");
+//  Serial.println(lowByte(addr));
+//  Serial.print("sending the following command: 0x");
+//  Serial.print(loadProgramMemory | high, HEX);
+//  Serial.print(", 0, 0x");
+//  Serial.print(lowByte(addr), HEX);
+//  Serial.print(", 0x");
+//  Serial.println(data, HEX);
   program (loadProgramMemory | high, 0, lowByte (addr), data);
 }
 
@@ -548,13 +549,13 @@ void AVRProgrammer::commitPage(unsigned long addr) {
     lastAddressMSB = MSB;
   }
   
-  Serial.println("commitPage: ");
-  Serial.print("sending the following command: 0x");
-  Serial.print(writeProgramMemory, HEX);
-  Serial.print(", 0, 0x");
-  Serial.print(highByte(addr), HEX);
-  Serial.print(", 0x");
-  Serial.println(lowByte(addr), HEX);
+//  Serial.println("commitPage: ");
+//  Serial.print("sending the following command: 0x");
+//  Serial.print(writeProgramMemory, HEX);
+//  Serial.print(", 0, 0x");
+//  Serial.print(highByte(addr), HEX);
+//  Serial.print(", 0x");
+//  Serial.println(lowByte(addr), HEX);
 
   program(writeProgramMemory, highByte(addr), lowByte(addr));
   pollUntilReady();
