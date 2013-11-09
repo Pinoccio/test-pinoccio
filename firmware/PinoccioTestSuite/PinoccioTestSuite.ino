@@ -320,10 +320,11 @@ void flash16U2() {
   pgm.getFuseBytes();
   
   Serial.println("-- writing bootloader");
-  // if we found a signature try to write a bootloader (16U2 requires bootloader written first, not sure why!
+  // if we found a signature, try to write a bootloader (16U2 requires bootloader written first, not sure why!)
   if (pgm.foundSignature() != -1) {
+    pgm.eraseChip();
     pgm.writeProgram(0x0000, atmega16u2_bootloader, sizeof(atmega16u2_bootloader));
-    pgm.writeFuseBytes(0xEF, 0xD9, 0xF4, 0x2F);
+    pgm.writeFuseBytes(0xEF, 0xD9, 0xF4);
   } else {
     testFailed = true;
   }
@@ -341,38 +342,40 @@ void flash256RFR2() {
   pgm.startProgramming();
   pgm.getSignature();
   pgm.getFuseBytes();
-  
+
+  //pgm.readProgram(0x0000, 100);
+  //return;
+/*  
   Serial.println("-- writing fuses");
   // if we found a signature try to write fuses
   if (pgm.foundSignature() != -1) {
-    pgm.writeFuseBytes(0xFF, 0xD0, 0xFE, 0x2F);
+    pgm.eraseChip();
+    pgm.writeFuseBytes(0xFF, 0xD0, 0xFE);
   } else {
     testFailed = true;
   }
-  
+
   pgm.end();
   
   pgm = AVRProgrammer(MEGA_256RFR2_RESET, SPI_CLOCK_DIV8);
   pgm.startProgramming();
   pgm.getSignature();
-  pgm.getFuseBytes();
   
   // if we found a signature try to write a bootloader
   if (pgm.foundSignature() != -1) {
-    pgm.eraseChip();
     pgm.writeProgram(0x3E000, atmega256rfr2_bootloader, sizeof(atmega256rfr2_bootloader));
   } else {
     testFailed = true;
   }
-  
+  */  
   Serial.println("-- writing sketch");
   pgm.startProgramming();
   pgm.getSignature();
-  pgm.getFuseBytes();
   
   // if we found a signature try to write the program
   if (pgm.foundSignature() != -1) {
-    pgm.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 50662);
+    pgm.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 51000); // be sure not to make this too short! Don't truncate
+    pgm.writeFuseBytes(0xFF, 0xD0, 0xFE);
   }
   
   
