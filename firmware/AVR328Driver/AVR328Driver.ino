@@ -8,7 +8,7 @@ Extended: FC
 #include <Wire.h>
 #include <stdio.h>
 
-#define AVR_DEBUG
+//#define AVR_DEBUG
 #ifdef AVR_DEBUG
 #  define D(x) x
 #else
@@ -26,7 +26,6 @@ enum {
 
 const char SLAVE_ADDR = 2;
 char command = INIT;
-
 
 // analog
 #define VUSB   PC0  // A0
@@ -113,8 +112,7 @@ void requestEvent() {
       handshake();
       break;
     case ANALOG_READ:
-      buf[0] = buffer[ctr-2];
-      buf[1] = buffer[ctr-1];
+      buf[0] = buffer[ctr-1];
       analogPinRead(atoi(buf));
       break;
     case DIGITAL_READ:
