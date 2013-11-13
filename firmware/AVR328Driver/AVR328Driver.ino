@@ -7,6 +7,7 @@ Extended: FC
 
 #include <Wire.h>
 #include <stdio.h>
+#define VERSION "1.1"
 
 //#define AVR_DEBUG
 #ifdef AVR_DEBUG
@@ -28,9 +29,9 @@ const char SLAVE_ADDR = 2;
 char command = INIT;
 
 // analog
-#define VUSB   PC0  // A0
-#define VBAT   PC1  // A1
-#define VCC    PC2  // A2
+#define VUSB   PC0  // A0 (D14)
+#define VBAT   PC1  // A1 (D15)
+#define VCC    PC2  // A2 (D16)
 
 // digital
 #define TX1_T  PD0  // D0
@@ -45,7 +46,7 @@ char command = INIT;
 #define D7_T   PB1  // D9
 #define D8_T   PB2  // D10
 #define SSN_T  PB4  // D12
-#define SDA_T  PC3  // A3 (D17)
+//#define SDA_T  PC3  // A3 (D17)
 //#define SCL_T  ADC6 // A6 
 //#define RX1_T  ADC7 // A7
 
@@ -134,14 +135,15 @@ void requestEvent() {
 }
 
 void handshake() {
-  D(Serial.println("Sending back 'XYZ'"));
-  Wire.write("XYZ");
+  D(Serial.print("Sending back "));
+  D(Serial.print(VERSION));
+  Wire.write(VERSION);
 }
 
 void analogPinRead(int pin) {
   D(Serial.print("Read A"));
   D(Serial.println(pin));
- 
+
   uint16_t val = analogRead(pin);
   
   sprintf(output, ":%04u", val);
@@ -152,19 +154,19 @@ void analogPinRead(int pin) {
 }
 
 void digitalPinRead(int pin) {
+  pinMode(pin, INPUT);
+
   D(Serial.print("Read D"));
-  D(Serial.println(pin));
+  D(Serial.print(pin));
+  D(Serial.print(": "));
   D(Serial.println(digitalRead(pin)));
   
-  digitalWrite(pin, LOW);
-  pinMode(pin, INPUT);
-  
-  itoa(digitalRead(pin), out, 10);
-  output = strcat(":", out);
+  sprintf(output, ":%01u", digitalRead(pin));
   
   D(Serial.print("Sending back: "));
-  D(Serial.println(output));
+  D(Serial.print(output));
   Wire.write(output);
+  output[0] = 0;
 }
 
 void digitalPinWrite(int pin, int value) {
