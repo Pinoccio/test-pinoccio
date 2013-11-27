@@ -245,14 +245,14 @@ void startTest() {
   testIsRunning = true;
   RgbLed.turnOff();
   
-//  testPowerUSBBattery();
-//  
-//  flash16U2();
-//  flash256RFR2();
-//  
-//  testReset();
-//  
-//  testPower3V3();
+  testPowerUSBBattery();
+  
+  flash16U2();
+  flash256RFR2();
+  
+  testReset();
+  
+  testPower3V3();
   testGPIO();
   
   //testRGBLED();
@@ -297,7 +297,7 @@ void testPowerUSBBattery() {
   digitalWrite(POWER_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(800);
+  delay(750);
 
   reading = readAnalog(VUSB_ADC);
   if (reading < VUSB_MIN) {
@@ -311,7 +311,7 @@ void testPowerUSBBattery() {
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(1000);
+  delay(500);
   
   reading = readAnalog(VUSB_ADC);
   if (reading > OFF_MAX) {
@@ -331,7 +331,7 @@ void testPowerUSBBattery() {
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, LOW);
-  delay(800);
+  delay(250);
  
   reading = readAnalog(VUSB_ADC);
   if (reading < VUSB_MIN) {
@@ -358,7 +358,7 @@ void testPower3V3() {
   digitalWrite(VBAT_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(500);
+  delay(250);
   
   reading = readAnalog(VCC_ADC);
   if (reading > OFF_MAX) {
@@ -368,9 +368,7 @@ void testPower3V3() {
   }
   
   TD(Serial1.println("-- Testing 3V3 via USB Power"));
-  digitalWrite(POWER_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, HIGH);
-  digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
 
   reading = readAnalog(VCC_ADC);
@@ -381,11 +379,9 @@ void testPower3V3() {
   }
   
   TD(Serial1.println("-- Testing 3V3 via VBAT Power"));
-  digitalWrite(POWER_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
-  digitalWrite(POWER_SWITCH, HIGH);
-  delay(1000);
+  digitalWrite(VUSB_SWITCH, LOW);
+  delay(250);
 
   reading = readAnalog(VCC_ADC);
   if (reading < VCC_MIN) {
@@ -398,7 +394,7 @@ void testPower3V3() {
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, LOW);
-  delay(800);
+  delay(250);
  
   reading = readAnalog(VCC_ADC);
   if (reading > OFF_MAX) {
@@ -409,7 +405,7 @@ void testPower3V3() {
 
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(500);
+  delay(250);
 
   return;
 }
