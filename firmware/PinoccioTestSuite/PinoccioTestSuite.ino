@@ -69,9 +69,6 @@ DUT pins used:
    - Iterate through Bitlash pins as outputs: D2-D8, A0-A7, SCK, MOSI, MISO, SS, RX1/TX1, BKPKBUS
    - Ensure set correctly
  
- - Test AREF (328p ADC 0-5v)
-   - Set AREF to 3.3v, send 3.3v, 1.65v, and 0v to A0-A7, ensure correct reading
- 
  - Test RGB LED (using TCS34717FN)
    - Set RGB LED to red, test red is shown
    - Set RGB LED to green, test green is shown
@@ -127,7 +124,7 @@ const int startButton = 8;
 const float VUSB_MIN = 4.8;
 const float VBAT_MIN = 3.7;
 const float VCC_MIN = 3.2;
-const float OFF_MAX = 0.8;
+const float OFF_MAX = 1.1;
 
 #define DRIVER_FLASH_CS SS
 #define AREF_SWITCH A0
@@ -248,15 +245,15 @@ void startTest() {
   testIsRunning = true;
   RgbLed.turnOff();
   
-  //testPower();  
-  
-  //flash16U2();
-  //flash256RFR2();
-  
-  //testReset();
+//  testPowerUSBBattery();
+//  
+//  flash16U2();
+//  flash256RFR2();
+//  
+//  testReset();
+//  
+//  testPower3V3();
   testGPIO();
-  
-  //testAREF();
   
   //testRGBLED();
   
@@ -271,8 +268,8 @@ void startTest() {
   TD(Serial1.println("Test complete"));
   testJigSetup();
 }
-/*
-void testPower() {
+
+void testPowerUSBBattery() {
   TD(Serial1.println("- Test Power -"));
   float reading;
   
@@ -282,38 +279,29 @@ void testPower() {
   digitalWrite(POWER_SWITCH, HIGH);
   delay(500);
 
-  if (reading = readAnalog(VUSB_ADC) > OFF_MAX) {
+  reading = readAnalog(VUSB_ADC);
+  if (reading > OFF_MAX) {
     TD(Serial1.print("FAIL: VUSB should be low, but it's high: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
   
-  if (reading = readAnalog(VBAT_ADC) > OFF_MAX) {
+  reading = readAnalog(VBAT_ADC);
+  if (reading > OFF_MAX) {
     TD(Serial1.print("FAIL: VBAT should be low, but it's high: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
-  
-  if (reading = readAnalog(VCC_ADC) > OFF_MAX) {
-    TD(Serial1.print("FAIL: VCC should be low, but it's high: "));
-    TD(Serial1.println(reading));
-    testFailed = true;
-  }
-  
+ 
   TD(Serial1.println("-- Testing VUSB Power"));
   digitalWrite(POWER_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(800);
 
-  if (reading = readAnalog(VUSB_ADC) < VUSB_MIN) {
+  reading = readAnalog(VUSB_ADC);
+  if (reading < VUSB_MIN) {
     TD(Serial1.print("FAIL: VUSB should be high, but it's low: "));
-    TD(Serial1.println(reading));
-    testFailed = true;
-  }
-
-  if (reading = readAnalog(VCC_ADC) < VCC_MIN) {
-    TD(Serial1.print("FAIL: VCC should be high, but it's low: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
@@ -325,20 +313,16 @@ void testPower() {
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
   
-  if (reading = readAnalog(VUSB_ADC) > OFF_MAX) {
+  reading = readAnalog(VUSB_ADC);
+  if (reading > OFF_MAX) {
     TD(Serial1.print("FAIL: VUSB should be low, but it's high: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
   
-  if (reading = readAnalog(VBAT_ADC) < VBAT_MIN) {
+  reading = readAnalog(VBAT_ADC);
+  if (reading < VBAT_MIN) {
     TD(Serial1.print("FAIL: VBAT should be high, but it's low: "));
-    TD(Serial1.println(reading));
-    testFailed = true;
-  }
-
-  if (reading = readAnalog(VCC_ADC) < VCC_MIN) {
-    TD(Serial1.print("FAIL: VCC should be high, but it's low: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
@@ -349,23 +333,83 @@ void testPower() {
   digitalWrite(POWER_SWITCH, LOW);
   delay(800);
  
-  if (reading = readAnalog(VUSB_ADC) < VUSB_MIN) {
+  reading = readAnalog(VUSB_ADC);
+  if (reading < VUSB_MIN) {
     TD(Serial1.print("FAIL: VUSB should be high, but it's low: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
   
-  if (reading = readAnalog(VBAT_ADC) < VBAT_MIN) {
+  reading = readAnalog(VBAT_ADC);
+  if (reading < VBAT_MIN) {
     TD(Serial1.print("FAIL: VBAT should be high, but it's low: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
 
-  if (reading = readAnalog(VCC_ADC) > OFF_MAX) {
-    TD(Serial1.print("FAIL: VCC should be low, but it's high: "));
+  return;
+}
+
+void testPower3V3() {
+  TD(Serial1.println("- Test 3V3 Power -"));
+  float reading;
+  
+  TD(Serial1.println("-- Testing all power off"));
+  digitalWrite(VBAT_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(POWER_SWITCH, HIGH);
+  delay(500);
+  
+  reading = readAnalog(VCC_ADC);
+  if (reading > OFF_MAX) {
+    TD(Serial1.print("FAIL: 3V3 should be low, but it's high: "));
     TD(Serial1.println(reading));
     testFailed = true;
   }
+  
+  TD(Serial1.println("-- Testing 3V3 via USB Power"));
+  digitalWrite(POWER_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(POWER_SWITCH, HIGH);
+  delay(1000);
+
+  reading = readAnalog(VCC_ADC);
+  if (reading < VCC_MIN) {
+    TD(Serial1.print("FAIL: 3V3 should be high, but it's low: "));
+    TD(Serial1.println(reading));
+    testFailed = true;
+  }
+  
+  TD(Serial1.println("-- Testing 3V3 via VBAT Power"));
+  digitalWrite(POWER_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(VBAT_SWITCH, HIGH);
+  digitalWrite(POWER_SWITCH, HIGH);
+  delay(1000);
+
+  reading = readAnalog(VCC_ADC);
+  if (reading < VCC_MIN) {
+    TD(Serial1.print("FAIL: 3V3 should be high, but it's low: "));
+    TD(Serial1.println(reading));
+    testFailed = true;
+  }
+  
+  TD(Serial1.println("-- Testing Power Switch"));
+  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VBAT_SWITCH, HIGH);
+  digitalWrite(POWER_SWITCH, LOW);
+  delay(800);
+ 
+  reading = readAnalog(VCC_ADC);
+  if (reading > OFF_MAX) {
+    TD(Serial1.print("FAIL: 3V3 should be low, but it's high: "));
+    TD(Serial1.println(reading));
+    testFailed = true;
+  }
+
+  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(POWER_SWITCH, HIGH);
+  delay(500);
 
   return;
 }
@@ -436,7 +480,7 @@ void flash256RFR2() {
   TD(Serial1.println("-- complete"));
   return;
 }
-*/
+
 void testReset() {
   TD(Serial1.println("- Test Reset -"));
   uint32_t time = millis();
@@ -473,12 +517,12 @@ void testReset() {
   while (millis() - time < 5000 && i < 92) {
     if (Serial.available() > 0) {
       buf[i++] = Serial.read();
-      TD(Serial1.write(buf[i-1]));
+      //TD(Serial1.write(buf[i-1]));
     }
   }
   //while(Serial.read() != -1);
   
-  TD(Serial1.println(i));
+  //TD(Serial1.println(i));
   
   if (strncmp(buf, "Hello from Pinoccio!", 20) != 0) {
     TD(Serial1.println("FAIL: Incorrect prompt received after board reset"));
@@ -497,8 +541,8 @@ void testReset() {
 // doesn't work.  This only took 12 hours to figure out.  0_o
 void testGPIO() {
   TD(Serial1.println("- Test GPIO -"));
-  
-  Serial.begin(115200);  
+ 
+  Serial.begin(115200);
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, LOW);
   delay(500);
@@ -532,131 +576,110 @@ void testGPIO() {
   checkPinVia328(SS, 12);
   
   // analog pins
-  checkPinViaDriver(24, 2);
-  checkPinViaDriver(25, 25);
-  checkPinViaDriver(26, 26);
-  checkPinViaDriver(27, 27);
-  checkPinViaDriver(28, 28);
-  checkPinVia328(29, 1);
-  checkPinVia328(30, 2);
-  checkPinVia328(31, 3);
+  checkPinViaDriver(24, 2);   // A0
+  checkPinViaDriver(25, 25);  // A1
+  checkPinViaDriver(26, 26);  // A2
+  checkPinViaDriver(27, 27);  // A3
+  checkPinViaDriver(28, 28);  // A4
+  checkPinVia328(29, 1);      // A5
+  checkPinVia328(30, 2);      // A6
+  checkPinVia328(31, 3);      // A7
     
   Serial.end();
   return;
 }
 
 void checkPinVia328(int scoutPin, int avr328Pin) {
-  writeDigital(avr328Pin, 1);
-  delay(100);
-  int offset = 0;
+  int offset = 1;
+  int offset2 = 13;
+  if (scoutPin >= 10) {
+    offset = 2;
+    offset2 = 14;
+  }
   
   TD(Serial1.print("-- Testing pin "));
   TD(Serial1.println(scoutPin));
-
-  if (scoutPin < 24) {
-  //  TD(Serial1.print("--- wrote: pinmode("));
-  //  TD(Serial1.print(scoutPin));
-  //  TD(Serial1.println(")"));
-    Serial.print("pinmode(");
-    Serial.print(scoutPin);
-    Serial.println(",0)");
   
-    if (expect(">", 14, 1, 3000) != 0) {
-      TD(Serial1.println("FAIL: Incorrect prompt received"));
-      testFailed = true;
-    }
-  } else {
-    delay(100);
-    offset = 1;
+  Serial.print("pinmode(");
+  Serial.print(scoutPin);
+  Serial.println(",0)");    
+  if (expect(">", 13+offset, 1, 3000) != 0) {
+    TD(Serial1.println("FAIL: Incorrect prompt received"));
+    testFailed = true;
   }
+    
+  writeDigital(avr328Pin, 1);
   
-//  TD(Serial1.print("--- wrote: print d"));
-//  TD(Serial1.print(scoutPin));
   Serial.print("print dr(");
   Serial.print(scoutPin);
   Serial.println(")");
-  if (expect("1", 13+offset, 1, 3000) != 0) {
+  delay(1);
+  if (expect("1", offset2, 1, 3000) != 0) {
     TD(Serial1.print("FAIL: D"));
     TD(Serial1.print(scoutPin));
     TD(Serial1.println(" should be high but it's low"));
     testFailed = true;
   }
-    
-  writeDigital(avr328Pin, 0);
-  delay(600);
   
-//  TD(Serial1.print("--- wrote: print d"));
-//  TD(Serial1.print(scoutPin));
-  Serial.print("print dr(");
-  Serial.print(scoutPin);
-  Serial.println(")");
-  if (expect("0", 13+offset, 1, 3000) != 0) {
-    TD(Serial1.print("FAIL: D"));
-    TD(Serial1.print(scoutPin));
-    TD(Serial1.println(" should be low but it's high"));
-    testFailed = true;
-  }
+  writeDigital(avr328Pin, 0);
+
+//  Serial.print("print dr(");
+//  Serial.print(scoutPin);
+//  Serial.println(")");
+//  delay(1);
+//  if (expect("0", offset2, 1, 3000) != 0) {
+//    TD(Serial1.print("FAIL: D"));
+//    TD(Serial1.print(scoutPin));
+//    TD(Serial1.println(" should be low but it's high"));
+//    testFailed = true;
+//  }
 }
 
 void checkPinViaDriver(int scoutPin, int driverPin) {
-  pinMode(driverPin, OUTPUT);
-  digitalWrite(driverPin, HIGH);
-  
-  delay(100);
-  int offset = 0;
-  
+  int offset = 1;
+  int offset2 = 13;
+  if (scoutPin >= 10) {
+    offset = 2;
+    offset2 = 14;
+  }
+ 
   TD(Serial1.print("-- Testing pin "));
   TD(Serial1.println(scoutPin));
-
-  if (scoutPin < 24) {
-  //  TD(Serial1.print("--- wrote: pinmode("));
-  //  TD(Serial1.print(scoutPin));
-  //  TD(Serial1.println(")"));
-    Serial.print("pinmode(");
-    Serial.print(scoutPin);
-    Serial.println(",0)");
   
-    if (expect(">", 14, 1, 3000) != 0) {
-      TD(Serial1.println("FAIL: Incorrect prompt received"));
-      testFailed = true;
-    }
-  } else {
-    delay(100);
-    offset = 1;
+  Serial.print("pinmode(");
+  Serial.print(scoutPin);
+  Serial.println(",0)");    
+  if (expect(">", 13+offset, 1, 3000) != 0) {
+    TD(Serial1.println("FAIL: Incorrect prompt received"));
+    testFailed = true;
   }
   
-//  TD(Serial1.print("--- wrote: print d"));
-//  TD(Serial1.print(scoutPin));
+  pinMode(driverPin, OUTPUT);
+  digitalWrite(driverPin, HIGH);
+
   Serial.print("print dr(");
   Serial.print(scoutPin);
   Serial.println(")");
-  if (expect("1", 13+offset, 1, 3000) != 0) {
+  delay(1);
+  if (expect("1", offset2, 1, 3000) != 0) {
     TD(Serial1.print("FAIL: D"));
     TD(Serial1.print(scoutPin));
     TD(Serial1.println(" should be high but it's low"));
     testFailed = true;
   }
-    
-  digitalWrite(driverPin, LOW);
-  delay(500);
   
-//  TD(Serial1.print("--- wrote: print d"));
-//  TD(Serial1.print(scoutPin));
-  Serial.print("print dr(");
-  Serial.print(scoutPin);
-  Serial.println(")");
-  if (expect("0", 13+offset, 1, 3000) != 0) {
-    TD(Serial1.print("FAIL: D"));
-    TD(Serial1.print(scoutPin));
-    TD(Serial1.println(" should be low but it's high"));
-    testFailed = true;
-  }
-}
-
-void testAREF() {
-  TD(Serial1.println("- Test AREF -"));
-
-  return;
+  digitalWrite(driverPin, LOW);
+  
+//  Serial.print("print dr(");
+//  Serial.print(scoutPin);
+//  Serial.println(")");
+//  delay(1);
+//  if (expect("0", offset2, 1, 3000) != 0) {
+//    TD(Serial1.print("FAIL: D"));
+//    TD(Serial1.print(scoutPin));
+//    TD(Serial1.println(" should be low but it's high"));
+//    testFailed = true;
+//  }
 }
 
 void testRGBLED() {
@@ -683,7 +706,8 @@ void readWire() {
   while (Wire.available()) { 
     wireBuffer[ctr++] = Wire.read();
     debug ? TD(Serial1.write(wireBuffer[ctr-1])) : false;
-  }   
+  }
+  debug ? TD(Serial1.println()) : false;
 }
 
 numvar i2cSend(void) {
@@ -700,7 +724,7 @@ void sendCommand(const char *cmd, const int responseSize) {
   Wire.beginTransmission(SLAVE_ADDR);
   Wire.write(cmd);
   Wire.endTransmission();
-  delay(100);
+  //delay(100);
   Wire.requestFrom(SLAVE_ADDR, responseSize); 
 }
 
@@ -778,6 +802,12 @@ int writeDigital(int pin, int value) {
   strcat(cmd, buf);
   
   char result[8];
+//  TD(Serial1.print("Pin: "));
+//  TD(Serial1.println(pin));
+//  TD(Serial1.print("Value: "));
+//  TD(Serial1.println(value));
+//  TD(Serial1.print("Command: "));
+//  TD(Serial1.println(cmd));
   sendCommandToI2C(cmd, 2);
   strncpy(result, wireBuffer + 1, strlen(wireBuffer));
   result[1] = 0;
@@ -789,7 +819,7 @@ int expect(char *expectedString, int start, int length, int timeout) {
   char buf[128];
   char compare[128];
   uint32_t time = millis();
-  int i = 0;
+  int i;
   
   debug ? TD(Serial1.print("expectedString: ")) : false;
   debug ? TD(Serial1.println(expectedString)) : false;
@@ -800,28 +830,43 @@ int expect(char *expectedString, int start, int length, int timeout) {
   debug ? TD(Serial1.print("timeout: ")) : false;
   debug ? TD(Serial1.println(timeout)) : false;
   
-  buf[0] = 0;
-  compare[0] = 0;
+  memset(buf, 0, 128);
+  memset(compare, 0, 128);
+  i = 0;
   
-  debug ? TD(Serial1.print("expect() reading from serial: ")) : false;
+  debug ? TD(Serial1.print("millis: ")) : false;
+  debug ? TD(Serial1.println(millis())) : false;
+  debug ? TD(Serial1.print("time: ")) : false;
+  debug ? TD(Serial1.println(time)) : false;
+  
   while (millis() - time < timeout) {
     if (Serial.available() > 0) {
       buf[i] = Serial.read();
       debug ? TD(Serial1.write(buf[i])) : false;
       
-      if (buf[i-1] == '>' && buf[i] == ' ') {
-        delay(100);
+      if (i > 0 && buf[i-1] == '>' && buf[i] == ' ') {
+        debug ? TD(Serial1.print("Breaking out at ")) : false;
+        debug ? TD(Serial1.println(i)) : false;
+        //delay(100);
         break;
       }
       
       i++;
     }
   }
-
   debug ? TD(Serial1.println()) : false;
+  
+  debug ? TD(Serial1.print("millis: ")) : false;
+  debug ? TD(Serial1.println(millis())) : false;
+  debug ? TD(Serial1.print("time: ")) : false;
+  debug ? TD(Serial1.println(time)) : false;
   
   int ctr = 0;
   for (int j=start; j<start+length; j++) {
+    debug ? TD(Serial1.print("assigning ")) : false;
+    debug ? TD(Serial1.print(buf[j])) : false;
+    debug ? TD(Serial1.print(" to ")) : false;
+    debug ? TD(Serial1.print(compare[ctr])) : false;
     compare[ctr++] = buf[j];
   }
   compare[ctr] = 0;
@@ -830,6 +875,7 @@ int expect(char *expectedString, int start, int length, int timeout) {
   debug ? TD(Serial1.println(compare)) : false;
   debug ? TD(Serial1.print("expectedString: ")) : false;
   debug ? TD(Serial1.println(expectedString)) : false;
+  debug ? TD(Serial1.println("--------------------")) : false;
   
   // flush buffer
   while(Serial.read() != -1);
