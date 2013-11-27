@@ -92,7 +92,7 @@ DUT pins used:
 //#include <serialGLCDlib.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <LeadScout.h>
+#include <Scout.h>
 
 #define DRIVER_VERSION "1.1"
 
@@ -134,6 +134,9 @@ const float OFF_MAX = 1.1;
 
 bool testIsRunning;
 bool testFailed;
+
+static NWK_DataReq_t appDataReq;
+int pingRSSI;
 
 char wireBuffer[256];
 char* cmd = (char*)malloc(32);
@@ -245,19 +248,19 @@ void startTest() {
   testIsRunning = true;
   RgbLed.turnOff();
   
-  testPowerUSBBattery();
-  
-  flash16U2();
-  flash256RFR2();
-  
-  testReset();
-  
-  testPower3V3();
-  testGPIO();
+//  testPowerUSBBattery();
+//  
+//  flash16U2();
+//  flash256RFR2();
+//  
+//  testReset();
+//  
+//  testPower3V3();
+//  testGPIO();
   
   //testRGBLED();
   
-  //testMesh();
+  testMesh();
 
   if (testFailed == false) {
     RgbLed.green();
@@ -468,7 +471,7 @@ void flash256RFR2() {
   
   // if we found a signature try to write the program
   if (pgm.foundSignature() != -1) {
-    pgm.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 51000); // be sure not to make this too short! Don't truncate
+    pgm.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 51520); // be sure not to make this too short! Don't truncate
     pgm.writeFuseBytes(0xFF, 0xD0, 0xFE);
   }
  
@@ -686,7 +689,51 @@ void testRGBLED() {
 
 void testMesh() {
   TD(Serial1.println("- Test Mesh Radio -"));
-
+  
+  Serial.begin(115200);
+  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(POWER_SWITCH, LOW);
+  delay(500);
+  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(POWER_SWITCH, HIGH);
+  delay(1000);
+  
+  if (expect(">", 90, 1, 3000) != 0) {
+    TD(Serial1.println("FAIL: Incorrect prompt received after board reset"));
+    testFailed = true;
+  }
+  
+  TD(Serial1.println("-- Configure mesh settings"));
+  
+  Scout.meshSetRadio(0xEFEF);
+  
+  Serial.println("mesh.config(0)");
+  delay(1);
+  if (expect(">", 16, 1, 3000) != 0) {
+    TD(Serial1.println("FAIL: mesh.config(0) didn't return '>'"));
+    testFailed = true;
+  }
+  
+  TD(Serial1.println("-- Testing ping "));
+  pingScout(0);
+  
+  uint32_t time = millis();
+  while (millis() - time < 10000) {
+    if (pingRSSI != 0) {
+      if (pingRSSI > 50) {
+        TD(Serial1.print("FAIL: RSSI is lower than -50: "));
+        TD(Serial1.println(pingRSSI));
+        testFailed = true;
+      }
+      break;
+    } 
+  }
+  
+  if (pingRSSI == 0) {
+    TD(Serial1.println("FAIL: No ping response received"));
+    testFailed = true;
+  }
+  
   return;
 }
 
@@ -877,4 +924,68 @@ int expect(char *expectedString, int start, int length, int timeout) {
   while(Serial.read() != -1);
   
   return strncmp((const char*)compare, expectedString, length);
+}
+
+static void pingScout(int address) {
+  uint8_t pingCounter = 1;
+  pingRSSI = 0;
+  
+  appDataReq.dstAddr = address;
+
+  appDataReq.dstEndpoint = 1;
+  appDataReq.srcEndpoint = 1;
+  appDataReq.options = NWK_OPT_ACK_REQUEST|NWK_OPT_ENABLE_SECURITY;
+  appDataReq.data = &pingCounter;
+  appDataReq.size = sizeof(pingCounter);
+  appDataReq.confirm = pingConfirm;
+  NWK_DataReq(&appDataReq);
+
+  TD(Serial1.print("PING "));
+  TD(Serial1.print(address));
+  TD(Serial1.println(": "));
+}
+
+static void pingConfirm(NWK_DataReq_t *req) {
+  TD(Serial1.print("dstAddr: "));
+  TD(Serial1.println(req->dstAddr, HEX));
+  TD(Serial1.print("dstEndpoint: "));
+  TD(Serial1.println(req->dstEndpoint));
+  TD(Serial1.print("srcEndpoint: "));
+  TD(Serial1.println(req->srcEndpoint));
+  TD(Serial1.print("options: "));
+  TD(Serial1.println(req->options, BIN));
+  TD(Serial1.print("size: "));
+  TD(Serial1.println(req->size));
+  TD(Serial1.print("status: "));
+  TD(Serial1.println(req->status, HEX));
+
+  if (req->status == NWK_SUCCESS_STATUS) {
+    TD(Serial1.print("1 byte from "));
+    TD(Serial1.print(req->dstAddr));
+    TD(Serial1.print(" RSSI=-"));
+    TD(Serial1.println(req->control));
+    pingRSSI = req->control;
+  } else {
+    TD(Serial1.print("Error: "));
+    switch (req->status) {
+      case NWK_OUT_OF_MEMORY_STATUS:
+        TD(Serial1.print("Out of memory: "));
+        break;
+      case NWK_NO_ACK_STATUS:
+      case NWK_PHY_NO_ACK_STATUS:
+        TD(Serial1.print("No acknowledgement received: "));
+        break;
+      case NWK_NO_ROUTE_STATUS:
+        TD(Serial1.print("No route to destination: "));
+        break;
+      case NWK_PHY_CHANNEL_ACCESS_FAILURE_STATUS:
+        TD(Serial1.print("Physical channel access failure: "));
+        break;
+      default:
+        TD(Serial1.print("unknown failure: "));
+    }
+    TD(Serial1.print("("));
+    TD(Serial1.print(req->status, HEX));
+    TD(Serial1.println(")"));
+  }
 }
