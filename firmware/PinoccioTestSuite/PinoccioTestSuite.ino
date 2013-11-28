@@ -181,7 +181,7 @@ void setup() {
 }
 
 void loop() {
-  Scout.loop();
+  //Scout.loop();
   testJigLoop();
 }
 
@@ -691,6 +691,8 @@ void testMesh() {
   TD(Serial1.println("- Test Mesh Radio -"));
   
   Serial.begin(115200);
+  while(Serial.read() != -1);
+  
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, LOW);
   delay(500);
@@ -705,7 +707,8 @@ void testMesh() {
   
   TD(Serial1.println("-- Configure mesh settings"));
   
-  Scout.meshSetRadio(0xEFEF);
+  SYS_Init();
+  Scout.meshSetRadio(0x7997);
   
   Serial.println("mesh.config(0)");
   delay(1);
@@ -715,10 +718,12 @@ void testMesh() {
   }
   
   TD(Serial1.println("-- Testing ping "));
-  pingScout(0);
   
   uint32_t time = millis();
-  while (millis() - time < 10000) {
+  pingScout(0);
+  
+  while (millis() - time < 2000) {
+    Scout.loop();   
     if (pingRSSI != 0) {
       if (pingRSSI > 50) {
         TD(Serial1.print("FAIL: RSSI is lower than -50: "));
@@ -940,24 +945,25 @@ static void pingScout(int address) {
   appDataReq.confirm = pingConfirm;
   NWK_DataReq(&appDataReq);
 
-  TD(Serial1.print("PING "));
+  TD(Serial1.print("Ping "));
   TD(Serial1.print(address));
-  TD(Serial1.println(": "));
+  TD(Serial1.print(": "));
 }
 
 static void pingConfirm(NWK_DataReq_t *req) {
-  TD(Serial1.print("dstAddr: "));
-  TD(Serial1.println(req->dstAddr, HEX));
-  TD(Serial1.print("dstEndpoint: "));
-  TD(Serial1.println(req->dstEndpoint));
-  TD(Serial1.print("srcEndpoint: "));
-  TD(Serial1.println(req->srcEndpoint));
-  TD(Serial1.print("options: "));
-  TD(Serial1.println(req->options, BIN));
-  TD(Serial1.print("size: "));
-  TD(Serial1.println(req->size));
-  TD(Serial1.print("status: "));
-  TD(Serial1.println(req->status, HEX));
+  bool debug = false;
+  debug ? TD(Serial1.print("dstAddr: ")) : false;
+  debug ? TD(Serial1.println(req->dstAddr, HEX)) : false;
+  debug ? TD(Serial1.print("dstEndpoint: ")) : false;
+  debug ? TD(Serial1.println(req->dstEndpoint)) : false;
+  debug ? TD(Serial1.print("srcEndpoint: ")) : false;
+  debug ? TD(Serial1.println(req->srcEndpoint)) : false;
+  debug ? TD(Serial1.print("options: ")) : false;
+  debug ? TD(Serial1.println(req->options, BIN)) : false;
+  debug ? TD(Serial1.print("size: ")) : false;
+  debug ? TD(Serial1.println(req->size)) : false;
+  debug ? TD(Serial1.print("status: ")) : false;
+  debug ? TD(Serial1.println(req->status, HEX)) : false;
 
   if (req->status == NWK_SUCCESS_STATUS) {
     TD(Serial1.print("1 byte from "));
