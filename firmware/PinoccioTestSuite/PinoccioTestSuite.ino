@@ -121,7 +121,7 @@ FlashClass DriverFlash(SS, SPI);
 
 const int startButton = 8;
 
-const float VUSB_MIN = 4.8;
+const float VUSB_MIN = 4.75;
 const float VBAT_MIN = 3.7;
 const float VCC_MIN = 3.2;
 const float OFF_MAX = 1.1;
@@ -143,6 +143,15 @@ char* cmd = (char*)malloc(32);
 int ctr = 0;
 
 int foundSig = -1;
+
+uint8_t eepromVersion = 1;
+uint8_t hwVersion = 1;
+uint16_t hwFamily = 1000;
+const uint32_t HW_SERIAL_INIT = 100000;
+const uint32_t HW_SERIAL_ADDR = 0x50000;
+uint32_t hwSerial = HW_SERIAL_INIT;
+
+const bool RESET_HW_SERIAL = true;
 
 void setup() {
   uint32_t start = millis();
@@ -175,13 +184,13 @@ void setup() {
   if (!flashFound) {
     TD(Serial1.println("FAIL: Serial flash chip not found"));
   }
-
-  RgbLed.cyan();
+  
   testJigSetup();
+  RgbLed.cyan();
 }
 
 void loop() {
-  //Scout.loop();
+  Scout.loop();
   testJigLoop();
 }
 
@@ -202,6 +211,9 @@ void testJigSetup() {
   digitalWrite(MEGA_16U2_RESET, HIGH);
   pinMode(DRIVER_FLASH_CS, OUTPUT);
   digitalWrite(DRIVER_FLASH_CS, HIGH);
+  
+  getSettingsFromFlash();
+  delay(1000);
   
   pinMode(BACKPACK_BUS, INPUT);
   digitalWrite(BACKPACK_BUS, LOW);
@@ -237,6 +249,28 @@ void testJigSetup() {
   //Serial1.println("Hello");
 }
 
+void getSettingsFromFlash() {
+  TD(Serial1.println("-- Setting up unique ID handler"));
+
+  if (RESET_HW_SERIAL == true) {
+    // initialize unique ID;
+    writeHwSerialToFlash(HW_SERIAL_INIT);
+  } 
+  
+  hwSerial = readHwSerialFromFlash();
+  TD(Serial1.print("--- Fetched unique ID: 0x"));
+  TD(Serial1.println(hwSerial, HEX));
+}
+
+void incrementHwSerial() {
+  TD(Serial1.println("-- Increment unique ID and store to flash"));
+  
+  hwSerial = readHwSerialFromFlash() + 1;
+  writeHwSerialToFlash(hwSerial);
+  TD(Serial1.print("--- Done"));
+}
+
+
 void testJigLoop() {
   if (digitalRead(startButton) == LOW && testIsRunning == false) {
     TD(Serial1.println("Starting test"));
@@ -248,15 +282,15 @@ void startTest() {
   testIsRunning = true;
   RgbLed.turnOff();
   
-//  testPowerUSBBattery();
-//  
-//  flash16U2();
-//  flash256RFR2();
-//  
-//  testReset();
-//  
-//  testPower3V3();
-//  testGPIO();
+  testPowerUSBBattery();
+  
+  flash16U2();
+  flash256RFR2();
+  
+  testReset();
+  
+  //testPower3V3();
+  testGPIO();
   
   //testRGBLED();
   
@@ -471,8 +505,49 @@ void flash256RFR2() {
   
   // if we found a signature try to write the program
   if (pgm.foundSignature() != -1) {
-    pgm.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 51520); // be sure not to make this too short! Don't truncate
+    pgm.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 61631); // be sure not to make this too short! Don't truncate
     pgm.writeFuseBytes(0xFF, 0xD0, 0xFE);
+ 
+    byte val[2];   
+    
+    // write EEPROM
+    TD(Serial1.println("-- writing EEPROM"));
+    pgm.writeEeprom(8191, eepromVersion);
+    
+    if (pgm.readEeprom(8191) != eepromVersion) {
+      testFailed = true;
+      TD(Serial1.println("FAIL: EEPROM version failed to write to EEPROM"));
+    } else {
+      TD(Serial1.print("--- Wrote data to address 8191: "));
+      TD(Serial1.println(pgm.readEeprom(8191)));
+    }
+  
+    convertWordToBytes(val, hwVersion);
+    pgm.writeEeprom(8189, val[0]);
+    pgm.writeEeprom(8190, val[1]);
+    if (pgm.readEeprom(8189) != val[0] || pgm.readEeprom(8190) != val[1]) {
+      testFailed = true;
+      TD(Serial1.println("FAIL: hardware version failed to write to EEPROM"));
+    } else {
+      TD(Serial1.print("--- Wrote data to address 8189-8190: "));
+      val[0] = pgm.readEeprom(8189);
+      val[1] = pgm.readEeprom(8190);
+      TD(Serial1.println(convertBytesToWord(val)));
+    }
+    
+   convertWordToBytes(val, hwVersion);
+    pgm.writeEeprom(8187, val[0]);
+    pgm.writeEeprom(8188, val[1]);
+    if (pgm.readEeprom(8187) != val[0] || pgm.readEeprom(8188) != val[1]) {
+      testFailed = true;  
+      TD(Serial1.println("FAIL: hardware family failed to write to EEPROM"));
+    } else {
+      TD(Serial1.print("--- Wrote data to address 8187-8188: "));
+      val[0] = pgm.readEeprom(8187);
+      val[1] = pgm.readEeprom(8188);
+      TD(Serial1.println(convertBytesToWord(val)));
+    }
+//    eeprom_update_dword(8184, hwSerial);
   }
  
   pgm.end();
@@ -493,7 +568,7 @@ void testReset() {
   
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(500);
+  delay(1000);
   
   digitalWrite(MEGA_256RFR2_RESET, LOW);
   while(Serial.read() != -1);
@@ -544,7 +619,7 @@ void testGPIO() {
   Serial.begin(115200);
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, LOW);
-  delay(500);
+  delay(1000);
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
@@ -994,4 +1069,76 @@ static void pingConfirm(NWK_DataReq_t *req) {
     TD(Serial1.print(req->status, HEX));
     TD(Serial1.println(")"));
   }
+}
+
+void writeHwSerialToFlash(uint32_t hwSerial) {
+  char dataWrite[5];
+  char dataCheck[5];
+  
+  TD(Serial1.println("--- Erasing subsector"));
+  DriverFlash.subSectorErase(HW_SERIAL_ADDR);
+  
+  TD(Serial1.print("--- Writing HW unique ID: "));
+  convertLongToBytes((byte *)dataWrite, hwSerial);
+  TD(Serial1.println(convertBytesToLong((byte *)dataWrite), HEX));
+  
+  DriverFlash.write(HW_SERIAL_ADDR, &dataWrite, 4);
+  TD(Serial1.print("--- Checking previous write: "));
+  DriverFlash.read(HW_SERIAL_ADDR, &dataCheck, 4);
+  
+  TD(Serial1.println(convertBytesToLong((byte *)dataCheck), HEX));
+  
+  if (strncmp(dataWrite, dataCheck, 4) != 0) {
+    TD(Serial1.println("FAIL: Writing serial failed"));
+    TD(Serial1.println(dataWrite));
+    TD(Serial1.println(dataCheck));
+  } else {
+    TD(Serial1.println("--- Write succeeded"));
+  }
+}
+
+uint32_t readHwSerialFromFlash() {
+  char dataRead[5];
+  DriverFlash.read(HW_SERIAL_ADDR, &dataRead, 4);
+  return convertBytesToLong((byte *)dataRead);
+}
+
+void convertLongToBytes(byte *convBytes, uint32_t target) {
+  for (int i=0; i<4; i++) {
+    convBytes[i] = (target & 0xFF);
+    target = target >> 8;
+  }
+  convBytes[4] = 0;
+}
+
+uint32_t convertBytesToLong(byte *convBytes) {
+  uint32_t target = 0;
+  
+  for (int i=3; i>=0; i--) {
+    target |= convBytes[i];
+    if (i > 0) {
+      target = target << 8;
+    }
+  }
+  return target;
+}
+
+void convertWordToBytes(byte *convBytes, uint16_t target) {
+  for (int i=0; i<2; i++) {
+    convBytes[i] = (target & 0xFF);
+    target = target >> 8;
+  }
+  convBytes[2] = 0;
+}
+
+uint16_t convertBytesToWord(byte *convBytes) {
+  uint16_t target = 0;
+  
+  for (int i=1; i>=0; i--) {
+    target |= convBytes[i];
+    if (i > 0) {
+      target = target << 8;
+    }
+  }
+  return target;
 }

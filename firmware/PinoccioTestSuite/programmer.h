@@ -92,6 +92,8 @@ enum {
   loadExtendedAddressByte = 0x4D,
   loadProgramMemory = 0x40,
 
+  readEepromMemory = 0xA0,
+  writeEepromMemory = 0xC0,
 };
 
 // structure to hold signature and other relevant data about each chip
@@ -106,7 +108,7 @@ typedef struct {
   unsigned long pageSize;     // bytes
   byte lowFuse, highFuse, extFuse, lockByte;
   byte timedWrites;    // if pollUntilReady won't work by polling the chip
-} 
+}
 signatureType;
 
 const unsigned long kb = 1024;
@@ -121,6 +123,8 @@ public:
   void writeProgram(unsigned long loaderStart, const byte *image, const int length);
   void writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length);
   void readProgram(uint32_t address, uint32_t length);
+  uint8_t readEeprom(uint32_t address);
+  void writeEeprom(uint32_t address, uint8_t value);
   void eraseChip();
   bool foundSignature();
   void end();
@@ -131,7 +135,7 @@ protected:
   byte writeFlash(unsigned long addr, const byte data);
   void showYesNo(const boolean b, const boolean newline = false);
   void pollUntilReady();
-  void commitPage(unsigned long addr);    
+  void commitPage(unsigned long addr);
   void writeFuse(const byte newValue, const byte instruction);
   void showHex(const byte b, const boolean newline = false, const boolean show0x = true);
 
@@ -140,4 +144,5 @@ protected:
   byte lastAddressMSB;
   byte spiSpeed;
 };
+
 

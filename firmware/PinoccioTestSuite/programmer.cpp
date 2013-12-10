@@ -89,7 +89,15 @@ signatureType signatures[] =
     0xF4,         // fuse extended byte:
     0x2F },       // lock bits: SPM is not allowed to write to the Boot Loader section.
 
-    { { 0x1E, 0x95, 0x8A }, "ATmega32U2",  32 * kb,   512 },
+    { { 0x1E, 0x95, 0x8A }, "ATmega32U2",  32 * kb,   1 * kb,
+    (byte*)atmega16u2_bootloader,// loader image
+    0x0000,      // start address
+    sizeof atmega16u2_bootloader,
+    64,          // page size (for committing)
+    0xEF,         // fuse low byte:
+    0xD9,         // fuse high byte:
+    0xF4,         // fuse extended byte:
+    0x2F },       // lock bits: SPM is not allowed to wri
 
 // Atmega32U4 family
     { { 0x1E, 0x94, 0x88 }, "ATmega16U4",  16 * kb,   512 },
@@ -114,7 +122,7 @@ AVRProgrammer::AVRProgrammer(int reset, int clockDivider) {
   foundSig = -1;
   resetPin = reset;
   lastAddressMSB = 0;
- 
+
   digitalWrite(resetPin, HIGH);
   SPI.begin();
   SPI.setClockDivider(clockDivider);
@@ -139,7 +147,7 @@ void AVRProgrammer::startProgramming() {
     SPI.transfer(0);
   } while (confirm != programAcknowledge);
   PD(Serial1.println("Entered programming mode OK"));
-  
+
   // we must set extended address byte to 0 to start, otherwise our writes start at 128k, not 0
   program(loadExtendedAddressByte, 0, lastAddressMSB);
 }
@@ -153,7 +161,7 @@ void AVRProgrammer::getSignature() {
   for (byte i = 0; i < 3; i++) {
     sig[i] = program(readSignatureByte, 0, i);
     PD(showHex(sig[i]));
-  } 
+  }
   PD(Serial1.println());
 
   for (int j = 0; j < NUMITEMS(signatures); j++) {
@@ -203,7 +211,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
   } else {
     PD(Serial1.println("Successfully wrote low fuse"));
   }
-  
+
   writeFuse(highFuse, writeHighFuseByte);
   if (program(readHighFuseByte, readHighFuseByteArg2) != highFuse) {
     PD(Serial1.print("High fuse failed to write. Expected "));
@@ -214,7 +222,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
   } else {
     PD(Serial1.println("Successfully wrote high fuse"));
   }
-  
+
   writeFuse(extendedFuse, writeExtendedFuseByte);
   if (program(readExtendedFuseByte, readExtendedFuseByteArg2) != extendedFuse) {
     PD(Serial1.print("Extended fuse failed to write. Expected "));
@@ -225,7 +233,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
   } else {
     PD(Serial1.println("Successfully wrote extended fuse"));
   }
-  
+
   writeFuse(lockFuse, writeLockByte);
   if (program(readLockByte, readLockByteArg2) != lockFuse) {
     PD(Serial1.print("Lock fuse failed to write. Expected "));
@@ -277,7 +285,7 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
   unsigned long oldPage = addr & pagemask;
 
   PD(Serial1.println("Writing program..."));
-    
+
   for (i = 0; i < len; i += 2) {
     unsigned long thisPage = (addr + i) & pagemask;
     // page changed? commit old one
@@ -296,7 +304,7 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
 
   // count errors
   unsigned int errors = 0;
-  
+
   // check each byte
   for (i = 0; i < len; i++) {
     byte found = readFlash(addr + i);
@@ -328,22 +336,22 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
 }
 
 void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length) {
-  
+
   uint32_t i;
   uint32_t addr = loaderStart;
   uint32_t  len = length;
   uint32_t pagesize = signatures[foundSig].pageSize;
   uint32_t pagemask = ~(pagesize - 1);
-  
+
   uint32_t timesThrough = 0;
   uint16_t bufCtr = 0;
   uint16_t verifyCtr = 0;
   uint16_t bufLen = 16384;
   byte flashBuffer[bufLen];
-  
+
   // count errors
   unsigned int errors = 0;
-  
+
   PD(Serial1.print("Bootloader page size = "));
   PD(Serial1.println(pagesize));
   PD(Serial1.print("Bootloader address = 0x"));
@@ -357,23 +365,23 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   unsigned long oldPage = addr & pagemask;
 
   PD(Serial1.println("Writing program..."));
-  
+
   // load each word
-  for (i=0; i<len; i+=2, bufCtr+=2) { 
-    
+  for (i=0; i<len; i+=2, bufCtr+=2) {
+
     unsigned long thisPage = (addr + i) & pagemask;
     // page changed? commit old one
     if (thisPage != oldPage) {
       commitPage(oldPage);
       oldPage = thisPage;
     }
-    
+
     if (i % bufLen == 0) {
       // read new chunk of bytes into buffer
       bufCtr = 0;
       flash->read(flashAddress + i, &flashBuffer, bufLen);
       startProgramming();
-      
+
       timesThrough++;
       PD(Serial1.print("Writing "));
       if ((timesThrough * bufLen) > len) {
@@ -393,7 +401,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   commitPage(oldPage);
 
   PD(Serial1.println("Written."));
- 
+
   // check each byte
   for (i=0; i<len; i++, bufCtr++) {
     if (i % bufLen == 0) {
@@ -453,9 +461,20 @@ void AVRProgrammer::readProgram(uint32_t address, uint32_t length) {
   PD(Serial1.println());
 }
 
+uint8_t AVRProgrammer::readEeprom(uint32_t address) {
+  PD(Serial1.println("Reading EEPROM..."));
+  return program(readEepromMemory, (byte)address >> 16, (byte)address & 0xFFFF, 0);
+}
+
+void AVRProgrammer::writeEeprom(uint32_t address, uint8_t value) {
+  PD(Serial1.println("Writing EEPROM..."));
+  program(writeEepromMemory, address >> 16, address & 0xFFFF, value);
+  pollUntilReady();
+}
+
 void AVRProgrammer::eraseChip() {
   PD(Serial1.println("Erasing chip..."));
-  program(programEnable, chipErase);   
+  program(programEnable, chipErase);
   //delay(20);  // for Atmega8
   pollUntilReady();
 }
@@ -544,7 +563,7 @@ void AVRProgrammer::commitPage(unsigned long addr) {
     program (loadExtendedAddressByte, 0, MSB);
     lastAddressMSB = MSB;
   }
-  
+
 //  Serial1.println("commitPage: ");
 //  Serial1.print("sending the following command: 0x");
 //  Serial1.print(writeProgramMemory, HEX);
