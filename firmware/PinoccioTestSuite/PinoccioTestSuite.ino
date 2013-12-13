@@ -147,11 +147,12 @@ int foundSig = -1;
 uint8_t eepromVersion = 1;
 uint8_t hwVersion = 1;
 uint16_t hwFamily = 1000;
-const uint32_t HW_SERIAL_INIT = 100000;
 const uint32_t HW_SERIAL_ADDR = 0x50000;
-uint32_t hwSerial = HW_SERIAL_INIT;
 
-const bool RESET_HW_SERIAL = true;
+const bool RESET_HW_SERIAL = false;
+const uint32_t HW_SERIAL_INIT = 0xF424C;
+
+uint32_t hwSerial;
 
 void setup() {
   uint32_t start = millis();
@@ -177,6 +178,7 @@ void setup() {
     if (DriverFlash.available()) {
       TD(Serial1.println("-- Serial flash chip found"));
       flashFound = true;
+      DriverFlash.end();
       break;
     }
   }
@@ -185,13 +187,30 @@ void setup() {
     TD(Serial1.println("FAIL: Serial flash chip not found"));
   }
   
+  getSettingsFromFlash();
+  
   testJigSetup();
   RgbLed.cyan();
 }
 
 void loop() {
-  Scout.loop();
+  //Scout.loop();
   testJigLoop();
+}
+
+void getSettingsFromFlash() {
+  TD(Serial1.println("-- Setting up unique ID handler"));
+  
+  if (RESET_HW_SERIAL == true) {
+    TD(Serial1.print("--- Initializing unique ID to: 0x"));
+    TD(Serial1.println(HW_SERIAL_INIT, HEX));
+    writeHwSerialToFlash(HW_SERIAL_INIT);
+  }
+  
+  TD(Serial1.print("-- Reading HW unique ID from flash: 0x"));
+  hwSerial = readHwSerialFromFlash();
+  TD(Serial1.println(hwSerial, HEX));
+  TD(Serial1.println("--- Done"));
 }
 
 void testJigSetup() {
@@ -212,15 +231,10 @@ void testJigSetup() {
   pinMode(DRIVER_FLASH_CS, OUTPUT);
   digitalWrite(DRIVER_FLASH_CS, HIGH);
   
-  getSettingsFromFlash();
-  delay(1000);
-  
   pinMode(BACKPACK_BUS, INPUT);
   digitalWrite(BACKPACK_BUS, LOW);
   pinMode(0, INPUT);
-  digitalWrite(0, LOW);
   pinMode(1, INPUT);
-  digitalWrite(1, LOW);
   pinMode(MOSI, OUTPUT);
   digitalWrite(MOSI, LOW);
 
@@ -243,33 +257,13 @@ void testJigSetup() {
   
   testIsRunning = false;
   testFailed = false;
+
+  while(Serial.read() != -1);
   
   TD(Serial1.println("--- Scout Test Jig ready to go! ---"));
   //lcd.clearLCD();
   //Serial1.println("Hello");
 }
-
-void getSettingsFromFlash() {
-  TD(Serial1.println("-- Setting up unique ID handler"));
-
-  if (RESET_HW_SERIAL == true) {
-    // initialize unique ID;
-    writeHwSerialToFlash(HW_SERIAL_INIT);
-  } 
-  
-  hwSerial = readHwSerialFromFlash();
-  TD(Serial1.print("--- Fetched unique ID: 0x"));
-  TD(Serial1.println(hwSerial, HEX));
-}
-
-void incrementHwSerial() {
-  TD(Serial1.println("-- Increment unique ID and store to flash"));
-  
-  hwSerial = readHwSerialFromFlash() + 1;
-  writeHwSerialToFlash(hwSerial);
-  TD(Serial1.print("--- Done"));
-}
-
 
 void testJigLoop() {
   if (digitalRead(startButton) == LOW && testIsRunning == false) {
@@ -289,13 +283,15 @@ void startTest() {
   
   testReset();
   
-  //testPower3V3();
+  testPower3V3();
   testGPIO();
-  
-  //testRGBLED();
   
   testMesh();
 
+  if (testFailed == false) {
+    writeEeprom();
+  }
+  
   if (testFailed == false) {
     RgbLed.green();
   } else {
@@ -453,7 +449,7 @@ void flash16U2() {
   digitalWrite(POWER_SWITCH, HIGH);
   delay(500);
   
-  AVRProgrammer pgm = AVRProgrammer(MEGA_16U2_RESET, SPI_CLOCK_DIV32);
+  AVRProgrammer pgm(MEGA_16U2_RESET, SPI, SPI_CLOCK_DIV32);
   pgm.startProgramming();
   pgm.getSignature();
   pgm.getFuseBytes();
@@ -466,6 +462,7 @@ void flash16U2() {
     TD(Serial1.println("-- writing fuses"));
     pgm.writeFuseBytes(0xEF, 0xD9, 0xF4);
   } else {
+    TD(Serial1.println("FAIL: Unable to find signature for 16U2"));
     testFailed = true;
   }
 
@@ -480,7 +477,7 @@ void flash256RFR2() {
   digitalWrite(POWER_SWITCH, HIGH);
   delay(500);
 
-  AVRProgrammer pgm = AVRProgrammer(MEGA_256RFR2_RESET, SPI_CLOCK_DIV64);
+  AVRProgrammer pgm(MEGA_256RFR2_RESET, SPI, SPI_CLOCK_DIV64);
   pgm.startProgramming();
   pgm.getSignature();
   pgm.getFuseBytes();
@@ -489,68 +486,28 @@ void flash256RFR2() {
   // if we found a signature try to write fuses
   if (pgm.foundSignature() != -1) {
     pgm.eraseChip();
-    pgm.writeFuseBytes(0xFF, 0xD0, 0xFE);
+    pgm.writeFuseBytes(0xDE, 0xD0, 0xDE, 0xFF);
     TD(Serial1.println("-- writing bootloader"));
     pgm.writeProgram(0x3E000, atmega256rfr2_bootloader, sizeof(atmega256rfr2_bootloader));
+    pgm.writeFuseBytes(0xDE, 0xD0, 0xDE, 0xEF);
   } else {
+    TD(Serial1.println("FAIL: Unable to find signature for 256RFR2"));
     testFailed = true;
   }
 
   pgm.end();
   
   TD(Serial1.println("-- writing sketch"));
-  pgm = AVRProgrammer(MEGA_256RFR2_RESET, SPI_CLOCK_DIV8);
-  pgm.startProgramming();
-  pgm.getSignature();
+  AVRProgrammer pgm2(MEGA_256RFR2_RESET, SPI, SPI_CLOCK_DIV8);
+  pgm2.startProgramming();
+  pgm2.getSignature();
   
   // if we found a signature try to write the program
-  if (pgm.foundSignature() != -1) {
-    pgm.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 61631); // be sure not to make this too short! Don't truncate
-    pgm.writeFuseBytes(0xFF, 0xD0, 0xFE);
- 
-    byte val[2];   
-    
-    // write EEPROM
-    TD(Serial1.println("-- writing EEPROM"));
-    pgm.writeEeprom(8191, eepromVersion);
-    
-    if (pgm.readEeprom(8191) != eepromVersion) {
-      testFailed = true;
-      TD(Serial1.println("FAIL: EEPROM version failed to write to EEPROM"));
-    } else {
-      TD(Serial1.print("--- Wrote data to address 8191: "));
-      TD(Serial1.println(pgm.readEeprom(8191)));
-    }
-  
-    convertWordToBytes(val, hwVersion);
-    pgm.writeEeprom(8189, val[0]);
-    pgm.writeEeprom(8190, val[1]);
-    if (pgm.readEeprom(8189) != val[0] || pgm.readEeprom(8190) != val[1]) {
-      testFailed = true;
-      TD(Serial1.println("FAIL: hardware version failed to write to EEPROM"));
-    } else {
-      TD(Serial1.print("--- Wrote data to address 8189-8190: "));
-      val[0] = pgm.readEeprom(8189);
-      val[1] = pgm.readEeprom(8190);
-      TD(Serial1.println(convertBytesToWord(val)));
-    }
-    
-   convertWordToBytes(val, hwVersion);
-    pgm.writeEeprom(8187, val[0]);
-    pgm.writeEeprom(8188, val[1]);
-    if (pgm.readEeprom(8187) != val[0] || pgm.readEeprom(8188) != val[1]) {
-      testFailed = true;  
-      TD(Serial1.println("FAIL: hardware family failed to write to EEPROM"));
-    } else {
-      TD(Serial1.print("--- Wrote data to address 8187-8188: "));
-      val[0] = pgm.readEeprom(8187);
-      val[1] = pgm.readEeprom(8188);
-      TD(Serial1.println(convertBytesToWord(val)));
-    }
-//    eeprom_update_dword(8184, hwSerial);
+  if (pgm2.foundSignature() != -1) {
+    pgm2.writeProgramFromSerialFlash(0x00000, &DriverFlash, 0x40000, 61471); // be sure not to make this too short! Don't truncate
   }
  
-  pgm.end();
+  pgm2.end();
   TD(Serial1.println("-- complete"));
   return;
 }
@@ -619,7 +576,7 @@ void testGPIO() {
   Serial.begin(115200);
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, LOW);
-  delay(1000);
+  delay(500);
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
@@ -677,7 +634,7 @@ void checkPinVia328(int scoutPin, int avr328Pin) {
   Serial.print("pinmode(");
   Serial.print(scoutPin);
   Serial.println(",0)");    
-  if (expect(">", 13+offset, 1, 3000) != 0) {
+  if (expect(">", 13+offset, 1, 6000) != 0) {
     TD(Serial1.println("FAIL: Incorrect prompt received"));
     testFailed = true;
   }
@@ -688,7 +645,7 @@ void checkPinVia328(int scoutPin, int avr328Pin) {
   Serial.print(scoutPin);
   Serial.println(")");
   delay(1);
-  if (expect("1", offset2, 1, 3000) != 0) {
+  if (expect("1", offset2, 1, 6000) != 0) {
     TD(Serial1.print("FAIL: D"));
     TD(Serial1.print(scoutPin));
     TD(Serial1.println(" should be high but it's low"));
@@ -756,12 +713,6 @@ void checkPinViaDriver(int scoutPin, int driverPin) {
 //  }
 }
 
-void testRGBLED() {
-  TD(Serial1.println("- Test RGB LED -"));
-
-  return;
-}
-
 void testMesh() {
   TD(Serial1.println("- Test Mesh Radio -"));
   
@@ -784,10 +735,11 @@ void testMesh() {
   
   SYS_Init();
   Scout.meshSetRadio(0x7997);
+  delay(500);
   
   Serial.println("mesh.config(0)");
-  delay(1);
-  if (expect(">", 16, 1, 3000) != 0) {
+  delay(500);
+  if (expect(">", 16, 1, 6000) != 0) {
     TD(Serial1.println("FAIL: mesh.config(0) didn't return '>'"));
     testFailed = true;
   }
@@ -815,6 +767,106 @@ void testMesh() {
   }
   
   return;
+}
+
+void writeEeprom() {
+  
+  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(POWER_SWITCH, LOW);
+  delay(500);
+  
+//  if (RESET_HW_SERIAL == true) {
+//    // initialize unique ID;
+//    writeHwSerialToFlash(HW_SERIAL_INIT);
+//  } 
+//  
+//  hwSerial = readHwSerialFromFlash();
+  TD(Serial1.print("--- Fetched unique ID: 0x"));
+  TD(Serial1.println(hwSerial, HEX));
+  
+  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(POWER_SWITCH, HIGH);
+//  digitalWrite(DRIVER_FLASH_CS, HIGH);
+//  digitalWrite(MEGA_256RFR2_RESET, HIGH);
+//  digitalWrite(MEGA_16U2_RESET, HIGH);
+  delay(1000);
+  
+   
+  TD(Serial1.println("-- preparing EEPROM"));
+  AVRProgrammer pgm(MEGA_256RFR2_RESET, SPI, SPI_CLOCK_DIV32);
+  pgm.startProgramming();
+  pgm.getSignature();
+  
+  // if we found a signature try to write the program
+  if (pgm.foundSignature() != -1) {
+    byte val[4];   
+    
+//    TD(Serial1.println("-- erasing EEPROM"));
+//    for (int i=0; i<8192; i++) {
+//      pgm.writeEeprom(i, 0xFF);
+//    }
+    
+    TD(Serial1.println("-- writing EEPROM"));    
+    TD(Serial1.print("--- writing EEPROM version to address 8191: "));
+    pgm.writeEeprom(8191, eepromVersion);
+    
+    if (pgm.readEeprom(8191) != eepromVersion) {
+      testFailed = true;
+      TD(Serial1.println());
+      TD(Serial1.println("FAIL: EEPROM version failed to write to EEPROM"));
+    } else {
+      TD(Serial1.println(pgm.readEeprom(8191)));
+    }
+  
+    TD(Serial1.print("--- writing hardware version to address 8190: "));
+    pgm.writeEeprom(8190, hwVersion);
+    if (pgm.readEeprom(8190) != hwVersion) {
+      testFailed = true;
+      TD(Serial1.println());
+      TD(Serial1.println("FAIL: hardware version failed to write to EEPROM"));
+    } else {
+      TD(Serial1.println(pgm.readEeprom(8190)));
+    }
+    
+    TD(Serial1.print("--- writing hardware family to address 8188-8189: "));
+    convertWordToBytes(val, hwFamily);
+    pgm.writeEeprom(8188, val[0]);
+    pgm.writeEeprom(8189, val[1]);
+    if (pgm.readEeprom(8188) != val[0] || pgm.readEeprom(8189) != val[1]) {
+      testFailed = true;  
+      TD(Serial1.println());
+      TD(Serial1.println("FAIL: hardware family failed to write to EEPROM"));
+    } else {
+      val[0] = pgm.readEeprom(8188);
+      val[1] = pgm.readEeprom(8189);
+      TD(Serial1.println(convertBytesToWord(val)));
+    }
+    
+    TD(Serial1.print("--- writing unique ID: "));
+    convertLongToBytes(val, hwSerial);
+    pgm.writeEeprom(8184, val[0]);
+    pgm.writeEeprom(8185, val[1]);
+    pgm.writeEeprom(8186, val[2]);
+    pgm.writeEeprom(8187, val[3]);
+    if (pgm.readEeprom(8184) != val[0] || pgm.readEeprom(8185) != val[1] ||
+        pgm.readEeprom(8186) != val[2] || pgm.readEeprom(8187) != val[3]) {
+      testFailed = true;  
+      TD(Serial1.println());
+      TD(Serial1.println("FAIL: unique ID failed to write to EEPROM"));
+    } else {
+      val[0] = pgm.readEeprom(8184);
+      val[1] = pgm.readEeprom(8185);
+      val[2] = pgm.readEeprom(8186);
+      val[3] = pgm.readEeprom(8187);
+      TD(Serial1.println(convertBytesToLong(val), HEX));
+    }
+    
+    if (testFailed == false) {
+      incrementHwSerial();
+    }
+  }
+  
+  pgm.end();
 }
 
 void readWire() {
@@ -880,8 +932,7 @@ int sendCommandToI2C(const char* command, int len) {
 
 float readAnalog(char *cmd) {
   char result[8];
-  sendCommandToI2C(cmd, 5);
-  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
+  sendCommandToI2C(cmd, 5);  strncpy(result, wireBuffer + 1, strlen(wireBuffer));
   return ((float) atoi(result) / 1024.0) * 5.0;
 }
 
@@ -986,13 +1037,14 @@ int expect(char *expectedString, int start, int length, int timeout) {
   
   int ctr = 0;
   for (int j=start; j<start+length; j++) {
-    debug ? TD(Serial1.print("assigning ")) : false;
-    debug ? TD(Serial1.print(buf[j])) : false;
-    debug ? TD(Serial1.print(" to ")) : false;
-    debug ? TD(Serial1.print(compare[ctr])) : false;
+//    debug ? TD(Serial1.print("assigning ")) : false;
+//    debug ? TD(Serial1.print(buf[j])) : false;
+//    debug ? TD(Serial1.print(" to ")) : false;
+//    debug ? TD(Serial1.print(compare[ctr])) : false;
     compare[ctr++] = buf[j];
   }
   compare[ctr] = 0;
+  debug ? TD(Serial1.println()) : false;
   
   debug ? TD(Serial1.print("compare: ")) : false;
   debug ? TD(Serial1.println(compare)) : false;
@@ -1075,6 +1127,8 @@ void writeHwSerialToFlash(uint32_t hwSerial) {
   char dataWrite[5];
   char dataCheck[5];
   
+  DriverFlash.begin(DRIVER_FLASH_CS, SPI);
+  
   TD(Serial1.println("--- Erasing subsector"));
   DriverFlash.subSectorErase(HW_SERIAL_ADDR);
   
@@ -1095,11 +1149,14 @@ void writeHwSerialToFlash(uint32_t hwSerial) {
   } else {
     TD(Serial1.println("--- Write succeeded"));
   }
+  DriverFlash.end();
 }
 
 uint32_t readHwSerialFromFlash() {
   char dataRead[5];
+  DriverFlash.begin(DRIVER_FLASH_CS, SPI);
   DriverFlash.read(HW_SERIAL_ADDR, &dataRead, 4);
+  DriverFlash.end();
   return convertBytesToLong((byte *)dataRead);
 }
 
@@ -1141,4 +1198,12 @@ uint16_t convertBytesToWord(byte *convBytes) {
     }
   }
   return target;
+}
+
+void incrementHwSerial() {
+  TD(Serial1.println("-- Increment unique ID and store to flash"));
+  
+  hwSerial = readHwSerialFromFlash() + 1;
+  writeHwSerialToFlash(hwSerial);
+  TD(Serial1.println("--- Done"));
 }

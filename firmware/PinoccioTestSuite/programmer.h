@@ -115,7 +115,9 @@ const unsigned long kb = 1024;
 
 class AVRProgrammer {
 public:
-  AVRProgrammer(int reset, int clockDivider=SPI_CLOCK_DIV4);
+  AVRProgrammer(int CS, SPIClass &SPIDriver, int clockDivider);
+  void begin();
+  void end();
   void startProgramming();
   void getSignature();
   void getFuseBytes();
@@ -127,7 +129,6 @@ public:
   void writeEeprom(uint32_t address, uint8_t value);
   void eraseChip();
   bool foundSignature();
-  void end();
 
 protected:
   byte program(const byte b1, const byte b2=0, const byte b3=0, const byte b4=0);
@@ -140,9 +141,11 @@ protected:
   void showHex(const byte b, const boolean newline = false, const boolean show0x = true);
 
   int foundSig;
-  int resetPin;
+
+  SPIClass &SPI;
+  int chipSelectPin;
   byte lastAddressMSB;
-  byte spiSpeed;
+  int spiSpeed;
 };
 
 
