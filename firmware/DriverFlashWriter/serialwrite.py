@@ -5,7 +5,7 @@ import binascii
 import sys
 
 filename = "scout-trunc.hex"
-	
+
 print "Connecting to serial"
 ser = serial.Serial("/dev/tty.usbmodemfa131", 115200, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, 5)
 
@@ -15,7 +15,7 @@ print "Opened following hex file for flashing: ", fp.name, "(", size, "bytes )"
 position = 0;
 
 print "Waiting for Pinoccio:"
-time.sleep(3)
+time.sleep(5)
 ret = ""
 running = True
 
@@ -31,7 +31,7 @@ while (running and position < size / 3):
 	ser.write(chr(val))
 	fp.read(1)
 
-	position+=1	
+	position+=1
 
 	if (position % 32 == 0):
 
@@ -43,9 +43,9 @@ while (running and position < size / 3):
 			running = False
 		else:
 			print ret
-		
+
 		ser.flushInput()
-		
+
 	if (position >= size):
 		print "Done"
 		running = False

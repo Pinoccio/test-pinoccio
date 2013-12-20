@@ -122,8 +122,8 @@ public:
   void getSignature();
   void getFuseBytes();
   void writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse=0xFF);
-  void writeProgram(unsigned long loaderStart, const byte *image, const int length);
-  void writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length);
+  bool writeProgram(unsigned long loaderStart, const byte *image, const int length);
+  bool writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length);
   void readProgram(uint32_t address, uint32_t length);
   uint8_t readEeprom(uint32_t address);
   void writeEeprom(uint32_t address, uint8_t value);

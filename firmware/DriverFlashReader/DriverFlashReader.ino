@@ -23,7 +23,7 @@ void readData(uint32_t address, uint32_t length) {
   
   int ctr = 0;
   
-  for (uint32_t i = addr; i <= addr + 0xF000; i++) {
+  for (uint32_t i = addr; i <= addr + length; i++) {
     
     if (i % BUFSIZE == 0) {
       ctr = 0;
@@ -69,7 +69,7 @@ void setup() {
   //DriverFlash.bulkErase(); 
   // Store flash hex in sector 4 (0x40000 - 0x4F000, 61,440 bytes)
   Serial.println("--- Reading sector 0x40000");
-  readData(addr, 51000);
+  readData(addr, 69000);
 }
 
 void loop() { }

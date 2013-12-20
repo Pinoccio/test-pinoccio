@@ -38,7 +38,13 @@ void setup() {
   //DriverFlash.bulkErase(); 
   // Store flash hex in sector 4 (0x40000 - 0x4F000, 61,440 bytes)
   Serial.println("--- Erasing sector 0x40000");
-  DriverFlash.sectorErase(addr); 
+  DriverFlash.sectorErase(addr);
+  Serial.println("--- Erasing sector 0x50000");
+  DriverFlash.sectorErase(addr+0x10000);
+  Serial.println("--- Erasing sector 0x60000");
+  DriverFlash.sectorErase(addr+0x20000);
+  Serial.println("--- Erasing sector 0x70000");
+  DriverFlash.sectorErase(addr+0x30000); 
   Serial.println("--- Ready for hex bytes");
 }
 

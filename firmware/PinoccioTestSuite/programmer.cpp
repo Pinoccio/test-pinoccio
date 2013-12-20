@@ -243,7 +243,7 @@ void AVRProgrammer::getFuseBytes() {
 }
 
 void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse) {
-  PD(Serial1.println("Writing fuses ..."));
+  PD(Serial1.println("Writing fuses..."));
 
   writeFuse(lowFuse, writeLowFuseByte);
   if (program(readLowFuseByte, readLowFuseByteArg2) != lowFuse) {
@@ -306,11 +306,13 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
 }
 
 // burn the bootloader to the target device
-void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, const int length) {
+bool AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, const int length) {
 
+  bool ret = false;
+  
   if (image == 0) {
     PD(Serial1.println("No bootloader support for this device."));
-    return;
+    return 1;
   }
 
   int i;
@@ -380,8 +382,8 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
 
   if (errors == 0) {
     PD(Serial1.println("No errors found."));
-  } 
-  else {
+  } else {
+    ret = true;
     PD(Serial1.print(errors, DEC));
     PD(Serial1.println(" verification error(s)."));
     if (errors > 100) {
@@ -389,11 +391,14 @@ void AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
     }
     //return;  // don't change fuses if errors
   }
-  PD(Serial1.print("Done."));
+  PD(Serial1.println("Done."));
+  return ret;
 }
 
-void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length) {
+bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length) {
 
+  bool ret = false;
+    
   uint32_t i;
   uint32_t addr = loaderStart;
   uint32_t  len = length;
@@ -489,6 +494,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
     PD(Serial1.println("No errors found."));
   } 
   else {
+    ret = true;
     PD(Serial1.print(errors, DEC));
     PD(Serial1.println(" verification error(s)."));
     if (errors > 100) {
@@ -497,6 +503,7 @@ void AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   }
   flash->end();
   PD(Serial1.print("Done."));
+  return ret;
 }
 
 void AVRProgrammer::readProgram(uint32_t address, uint32_t length) {
