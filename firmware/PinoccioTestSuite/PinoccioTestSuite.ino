@@ -202,6 +202,7 @@ void loop() {
 
 void getSettingsFromFlash() {
   TD(Serial1.println("-- Setting up unique ID handler"));
+  resetSPIChipSelectPins();
   
   if (RESET_HW_SERIAL == true) {
     TD(Serial1.print("--- Initializing unique ID to: 0x"));
@@ -239,12 +240,8 @@ void resetHardwarePins() {
   digitalWrite(VBAT_SWITCH, LOW);
   pinMode(VUSB_SWITCH, OUTPUT);
   digitalWrite(VUSB_SWITCH, LOW);
-  pinMode(MEGA_256RFR2_RESET, OUTPUT);
-  digitalWrite(MEGA_256RFR2_RESET, HIGH);
-  pinMode(MEGA_16U2_RESET, OUTPUT);
-  digitalWrite(MEGA_16U2_RESET, HIGH);
-  pinMode(DRIVER_FLASH_CS, OUTPUT);
-  digitalWrite(DRIVER_FLASH_CS, HIGH);
+  
+  resetSPIChipSelectPins();
   
   pinMode(BACKPACK_BUS, INPUT);
   digitalWrite(BACKPACK_BUS, LOW);
@@ -269,6 +266,15 @@ void resetHardwarePins() {
   doCommand("i2c.send(\"WD100\")");
   doCommand("i2c.send(\"WD120\")");
   doCommand("i2c.send(\"WD170\")");  
+}
+
+void resetSPIChipSelectPins() {
+  pinMode(MEGA_256RFR2_RESET, OUTPUT);
+  pinMode(MEGA_16U2_RESET, OUTPUT);
+  pinMode(DRIVER_FLASH_CS, OUTPUT);
+  digitalWrite(MEGA_256RFR2_RESET, HIGH);
+  digitalWrite(MEGA_16U2_RESET, HIGH);
+  digitalWrite(DRIVER_FLASH_CS, HIGH);
 }
 
 void testJigLoop() {
@@ -399,7 +405,7 @@ void testPower3V3() {
   digitalWrite(VBAT_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(500);
+  delay(1000);
   
   reading = readAnalog(VCC_ADC);
   if (reading > OFF_MAX) {
@@ -421,9 +427,8 @@ void testPower3V3() {
   
   TD(Serial1.println("-- Testing 3V3 via VBAT Power"));
   digitalWrite(VBAT_SWITCH, HIGH);
-  delay(500);
   digitalWrite(VUSB_SWITCH, LOW);
-  delay(500);
+  delay(1000);
 
   reading = readAnalog(VCC_ADC);
   if (reading < VCC_MIN) {
@@ -456,6 +461,7 @@ void flash16U2() {
   TD(Serial1.println("- Flash 16U2 -"));
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
+  resetSPIChipSelectPins();
   delay(500);
   bool err;
   
@@ -490,6 +496,7 @@ void flash256RFR2() {
   TD(Serial1.println("- Flash 256RFR2 -"));
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
+  resetSPIChipSelectPins();
   delay(500);
   bool err;
   
