@@ -19,6 +19,7 @@
  */
 
 #include "md5.h"
+#include <string.h>
 
 #define GET_UINT32(n,b,i)                       \
 {                                               \
