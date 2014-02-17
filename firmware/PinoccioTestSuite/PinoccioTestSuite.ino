@@ -93,6 +93,7 @@ DUT pins used:
 #include <SPI.h>
 #include <Wire.h>
 #include <Scout.h>
+#include <GS.h>
 
 #define DRIVER_VERSION "1.1"
 
