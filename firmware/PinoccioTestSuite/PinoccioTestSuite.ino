@@ -163,7 +163,7 @@ void setup() {
   Wire.begin();
   Serial1.begin(115200);
   addBitlashFunction("i2c.send", (bitlash_function) i2cSend);
-  Scout.disableShell();
+  Shell.disableShell();
   Scout.setup();
   
   TD(Serial1.println("- Initialize Test Jig"));
