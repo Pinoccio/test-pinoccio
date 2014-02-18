@@ -554,21 +554,21 @@ void testReset() {
   digitalWrite(VBAT_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, LOW);
-  delay(500);
+  delay(1000);
   
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
   
   digitalWrite(MEGA_256RFR2_RESET, LOW);
-  delay(250);
+  delay(500);
   //while(Serial.read() != -1);
   digitalWrite(MEGA_256RFR2_RESET, HIGH);
   delay(1000);
 
   uint32_t time = millis();
   while (!Serial.available()) {
-    if (millis() - time > 3000) {
+    if (millis() - time > 5000) {
       TD(Serial1.println("FAIL: No serial data received after board reset"));
       testFailed = true;
       return;
@@ -590,7 +590,8 @@ void testReset() {
   //TD(Serial1.println(i));
   
   if (strncmp(buf, "Hello from Pinoccio!", 20) != 0) {
-    TD(Serial1.println("FAIL: Incorrect prompt received after board reset"));
+    TD(Serial1.print("FAIL: Incorrect prompt received after board reset: "));
+    TD(Serial1.println(buf));
     testFailed = true;
     return;
   }
