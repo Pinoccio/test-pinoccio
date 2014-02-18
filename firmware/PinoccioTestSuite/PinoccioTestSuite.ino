@@ -93,6 +93,7 @@ DUT pins used:
 #include <SPI.h>
 #include <Wire.h>
 #include <Scout.h>
+#include <GS.h>
 
 #define DRIVER_VERSION "1.1"
 
@@ -162,7 +163,7 @@ void setup() {
   Wire.begin();
   Serial1.begin(115200);
   addBitlashFunction("i2c.send", (bitlash_function) i2cSend);
-  Scout.disableShell();
+  Shell.disableShell();
   Scout.setup();
   
   TD(Serial1.println("- Initialize Test Jig"));
