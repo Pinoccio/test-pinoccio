@@ -315,6 +315,9 @@ bool AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
     return 1;
   }
 
+  begin();
+  startProgramming();
+      
   int i;
   byte lFuse = program(readLowFuseByte, readLowFuseByteArg2);
 
@@ -392,23 +395,25 @@ bool AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
     //return;  // don't change fuses if errors
   }
   PD(Serial1.println("Done."));
+  end();
+  
   return ret;
 }
 
-bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint32_t flashAddress, const uint32_t length) {
+bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint8_t flashSS, const uint32_t flashAddress, const uint32_t length) {
 
   bool ret = false;
     
   uint32_t i;
   uint32_t addr = loaderStart;
-  uint32_t  len = length;
+  uint32_t len = length;
   uint32_t pagesize = signatures[foundSig].pageSize;
   uint32_t pagemask = ~(pagesize - 1);
 
   uint32_t timesThrough = 0;
   uint16_t bufCtr = 0;
   uint16_t verifyCtr = 0;
-  uint16_t bufLen = 16384;
+  uint16_t bufLen = 4096;
   byte flashBuffer[bufLen];
 
   // count errors
@@ -441,9 +446,12 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
     if (i % bufLen == 0) {
       // read new chunk of bytes into buffer
       bufCtr = 0;
+      
+      end();
+      flash->begin(flashSS, SPI);
       flash->read(flashAddress + i, &flashBuffer, bufLen);
-      startProgramming();
-
+      flash->end();
+      
       timesThrough++;
       PD(Serial1.print("Writing "));
       if ((timesThrough * bufLen) > len) {
@@ -454,6 +462,9 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
       }
       PD(Serial1.print(" bytes of a total of "));
       PD(Serial1.println(len));
+      
+      begin();
+      startProgramming();
     }
 
     writeFlash(addr + i, flashBuffer[bufCtr]);
@@ -471,7 +482,13 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
       PD(Serial1.print("Verifying flash at address: 0x"));
       PD(Serial1.println(loaderStart + i, HEX));
       bufCtr = 0;
+      
+      end();
+      flash->begin(flashSS, SPI);
       flash->read(flashAddress + i, &flashBuffer, bufLen);
+      flash->end();
+      
+      begin();
       startProgramming();
     }
 
@@ -501,7 +518,8 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
       PD(Serial1.print("First 100 shown."));
     }
   }
-  flash->end();
+  
+  end();
   PD(Serial1.print("Done."));
   return ret;
 }

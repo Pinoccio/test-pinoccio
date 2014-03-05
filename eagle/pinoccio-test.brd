@@ -963,46 +963,58 @@ Please make sure your boards conform to these design rules.</description>
 </pass>
 </autorouter>
 <elements>
-<element name="C2" library="Pinoccio" package="0402-CAP" value="0.1uF" x="29.764" y="53.4416" smashed="yes" rot="R90"/>
+<element name="C2" library="Pinoccio" package="0402-CAP" value="0.1uF" x="29.764" y="53.4416" smashed="yes" rot="R90">
+<attribute name="NAME" x="29.0655" y="52.5526" size="0.4064" layer="25" rot="R90"/>
+<attribute name="VALUE" x="30.907" y="52.3621" size="0.4064" layer="27" rot="R90"/>
+</element>
 <element name="JP4" library="Pinoccio" package="2X3" value="SPI-16U2" x="48.26" y="39.878" locked="yes" smashed="yes" rot="MR180"/>
 <element name="JP-R" library="Pinoccio" package="1X16_2MM_POGO" value="M162MM_POGO" x="61.849" y="39.37" locked="yes" smashed="yes" rot="R270"/>
 <element name="JP-L" library="Pinoccio" package="1X16_2MM_POGO" value="M162MM_POGO" x="39.751" y="39.37" locked="yes" smashed="yes" rot="R270"/>
 <element name="JP2" library="Pinoccio" package="1X02" value="Ext Battery" x="41.2496" y="46.482" locked="yes" smashed="yes" rot="MR270"/>
 <element name="J1" library="Pinoccio" package="2X3" value="SPI-328P" x="32.9692" y="22.1996" smashed="yes" rot="R90"/>
-<element name="U3" library="SparkFun" package="TQFP32-08" value="ATMEGA168" x="50.927" y="12.4714" smashed="yes" rot="R180"/>
+<element name="U3" library="SparkFun" package="TQFP32-08" value="ATMEGA168" x="50.927" y="12.4714" rot="R180"/>
 <element name="Y1" library="Pinoccio" package="CRYSTAL-SMD-2.5X2-ABM10" value="" x="57.6326" y="14.4526" rot="R270"/>
 <element name="JP-L1" library="Pinoccio" package="1X16_2MM" value="M162MM" x="1.651" y="39.37" locked="yes" smashed="yes" rot="R270"/>
 <element name="JP-R1" library="Pinoccio" package="1X16_2MM" value="M162MM" x="23.749" y="39.37" smashed="yes" rot="R270"/>
 <element name="U$1" library="Pinoccio" package="TDFN4" value="SWITCH-MOSFETTDFN4" x="40.8686" y="55.0926" smashed="yes" rot="R180"/>
-<element name="C1" library="Pinoccio" package="0402-CAP" value="10pF" x="58.0644" y="12.5222" smashed="yes"/>
+<element name="C1" library="Pinoccio" package="0402-CAP" value="10pF" x="58.0644" y="12.5222" smashed="yes">
+<attribute name="NAME" x="58.1152" y="13.2207" size="0.4064" layer="25"/>
+<attribute name="VALUE" x="58.1025" y="11.557" size="0.4064" layer="27"/>
+</element>
 <element name="C7" library="Pinoccio" package="0402-CAP" value="10pF" x="57.6072" y="16.4592" smashed="yes"/>
-<element name="U$4" library="Pinoccio" package="SOT223" value="NCP1117" x="30.3276" y="47.2948" smashed="yes" rot="R180"/>
-<element name="C3" library="Pinoccio" package="0805" value="47uF" x="27.9908" y="53.4162" smashed="yes" rot="R90"/>
-<element name="C4" library="Pinoccio" package="0805" value="47uF" x="26.2636" y="44.2976" smashed="yes" rot="R180"/>
+<element name="U$4" library="Pinoccio" package="SOT223" value="NCP1117" x="30.3276" y="47.2948" rot="R180"/>
+<element name="C3" library="Pinoccio" package="0805" value="47uF" x="27.9908" y="53.4162" smashed="yes" rot="R90">
+<attribute name="NAME" x="27.1653" y="52.6542" size="0.4064" layer="25" rot="R90"/>
+<attribute name="VALUE" x="26.3906" y="52.3748" size="0.4064" layer="27" rot="R90"/>
+</element>
+<element name="C4" library="Pinoccio" package="0805" value="47uF" x="26.2636" y="44.2976" rot="R180"/>
 <element name="J2" library="Pinoccio" package="POWER_JACK_PTH" value="POWER_JACKPTH" x="-4.7498" y="55.7276" rot="MR90"/>
-<element name="U$8" library="Pinoccio" package="TSSOP-16" value="CD4050B" x="50.8762" y="22.5806" smashed="yes" rot="R90"/>
-<element name="U$9" library="Pinoccio" package="TSSOP-16" value="CD4050B" x="68.9102" y="18.8468" smashed="yes" rot="R180"/>
-<element name="R1" library="Pinoccio" package="0402-RES" value="100k" x="41.91" y="54.3052" smashed="yes" rot="R270"/>
+<element name="U$8" library="Pinoccio" package="TSSOP-16" value="CD4050B" x="50.8762" y="22.5806" rot="R90"/>
+<element name="U$9" library="Pinoccio" package="TSSOP-16" value="CD4050B" x="68.9102" y="18.8468" rot="R180"/>
+<element name="R1" library="Pinoccio" package="0402-RES" value="100k" x="41.91" y="54.3052" rot="R270"/>
 <element name="JP1" library="Pinoccio" package="2X3" value="SPI-256RFR2" x="48.26" y="31.75" locked="yes" smashed="yes" rot="MR180"/>
 <element name="U1" library="Pinoccio" package="SON-6-DRV" value="LDO-TPS73533" x="58.4454" y="20.574" rot="R180"/>
-<element name="C5" library="Pinoccio" package="0402-CAP" value="1.0uF" x="55.7022" y="19.177" smashed="yes" rot="R270"/>
-<element name="C6" library="Pinoccio" package="0402-CAP" value="2.2uF" x="57.4802" y="22.0472" smashed="yes" rot="R180"/>
-<element name="C8" library="Pinoccio" package="0402-CAP" value="1.0uF" x="56.5912" y="11.43" smashed="yes" rot="R270"/>
-<element name="C9" library="Pinoccio" package="0402-CAP" value="1.0uF" x="45.1104" y="12.446" smashed="yes" rot="R270"/>
-<element name="U$12" library="Pinoccio" package="TDFN4" value="SWITCH-MOSFETTDFN4" x="57.6072" y="27.0002" rot="R90"/>
-<element name="R2" library="Pinoccio" package="0402-RES" value="100k" x="56.6674" y="26.3398" smashed="yes" rot="R180"/>
+<element name="C5" library="Pinoccio" package="0402-CAP" value="1.0uF" x="55.7022" y="19.177" rot="R270"/>
+<element name="C6" library="Pinoccio" package="0402-CAP" value="2.2uF" x="57.4802" y="22.0472" rot="R180"/>
+<element name="C8" library="Pinoccio" package="0402-CAP" value="1.0uF" x="56.5912" y="11.43" smashed="yes" rot="R270">
+<attribute name="NAME" x="57.2897" y="11.5316" size="0.4064" layer="25" rot="R270"/>
+<attribute name="VALUE" x="55.4482" y="12.5095" size="0.4064" layer="27" rot="R270"/>
+</element>
+<element name="C9" library="Pinoccio" package="0402-CAP" value="1.0uF" x="45.1104" y="12.446" rot="R270"/>
+<element name="U$12" library="Pinoccio" package="TDFN4" value="SWITCH-MOSFETTDFN4" x="57.6072" y="27.0002" smashed="yes" rot="R90"/>
+<element name="R2" library="Pinoccio" package="0402-RES" value="100k" x="56.6674" y="26.3398" rot="R180"/>
 <element name="U$16" library="Pinoccio" package="TDFN4" value="SWITCH-MOSFETTDFN4" x="56.134" y="40.767"/>
-<element name="R3" library="Pinoccio" package="0402-RES" value="100k" x="55.8038" y="43.18" smashed="yes"/>
+<element name="R3" library="Pinoccio" package="0402-RES" value="100k" x="55.8038" y="43.18"/>
 <element name="JP3" library="Pinoccio" package="1X02" value="Power Switch" x="58.9407" y="41.656" locked="yes" smashed="yes" rot="MR180"/>
 <element name="RGB-SENSOR-JACK" library="Pinoccio" package="1X04" value="JUMPER-4" x="21.7424" y="56.8452" smashed="yes" rot="R180"/>
 <element name="S1" library="Pinoccio" package="TACTILE-PTH-12MM" value="SWITCH-MOMENTARY-212MM" x="90.17" y="9.779" rot="R270"/>
 <element name="JP5" library="Pinoccio" package="2X3" value="SPI-256RFR2" x="59.0804" y="54.6354" smashed="yes" rot="R90"/>
 <element name="JP6" library="Pinoccio" package="2X3" value="SPI-16U2" x="49.4284" y="54.7624" smashed="yes" rot="R90"/>
 <element name="U$17" library="Pinoccio" package="JST-SFH" value="JST-SFHSFH" x="30.4038" y="62.3824" rot="R180"/>
-<element name="U$18" library="Pinoccio" package="TSSOP-16" value="CD4050B" x="68.9102" y="30.3022" smashed="yes" rot="R180"/>
+<element name="U$18" library="Pinoccio" package="TSSOP-16" value="CD4050B" x="68.9102" y="30.3022" rot="R180"/>
 <element name="LCD-DISPLAY-JACK" library="Pinoccio" package="1X04" value="JUMPER-4" x="21.7424" y="59.3852" smashed="yes" rot="R180"/>
 <element name="U$6" library="Pinoccio" package="TDFN4" value="SWITCH-MOSFETTDFN4" x="44.6024" y="46.0502" rot="R180"/>
-<element name="R4" library="Pinoccio" package="0402-RES" value="100k" x="45.3644" y="43.9674" smashed="yes" rot="R90"/>
+<element name="R4" library="Pinoccio" package="0402-RES" value="100k" x="45.3644" y="43.9674" rot="R90"/>
 <element name="JP7" library="Pinoccio" package="STAND-OFF" value="STAND-OFF" x="68.58" y="39.37" locked="yes"/>
 <element name="JP8" library="Pinoccio" package="STAND-OFF" value="STAND-OFF" x="33.02" y="39.37" locked="yes"/>
 <element name="JP9" library="Pinoccio" package="STAND-OFF" value="STAND-OFF" x="33.02" y="9.3726" locked="yes"/>
@@ -1011,10 +1023,16 @@ Please make sure your boards conform to these design rules.</description>
 <element name="TEST-USB" library="Pinoccio" package="1X04" value="JUMPER-4" x="41.0464" y="58.0898" smashed="yes" rot="R180"/>
 <element name="U2" library="Pinoccio" package="JOYSTICK" value="JOYSTICKPTH" x="88.0618" y="50.292" smashed="yes" rot="R180"/>
 <element name="U$2" library="Pinoccio" package="SO8N" value="M25PX16SO8N" x="12.9286" y="31.3944" smashed="yes"/>
-<element name="C10" library="Pinoccio" package="0402-CAP" value="0.1uF" x="11.0236" y="36.195" smashed="yes" rot="R90"/>
-<element name="R5" library="Pinoccio" package="0402-RES" value="100k" x="12.2936" y="36.195" smashed="yes" rot="R90"/>
-<element name="R6" library="Pinoccio" package="0402-RES" value="100k" x="11.0236" y="26.543" smashed="yes" rot="R270"/>
-<element name="R7" library="Pinoccio" package="0402-RES" value="100k" x="13.5636" y="26.543" smashed="yes" rot="R270"/>
+<element name="C10" library="Pinoccio" package="0402-CAP" value="0.1uF" x="11.0236" y="36.195" smashed="yes" rot="R90">
+<attribute name="NAME" x="10.3251" y="35.306" size="0.4064" layer="25" rot="R90"/>
+<attribute name="VALUE" x="9.652" y="35.1917" size="0.4064" layer="27" rot="R90"/>
+</element>
+<element name="R5" library="Pinoccio" package="0402-RES" value="100k" x="12.2936" y="36.195" smashed="yes" rot="R90">
+<attribute name="NAME" x="14.1097" y="35.4584" size="0.4064" layer="25" rot="R90"/>
+<attribute name="VALUE" x="13.4366" y="35.1155" size="0.4064" layer="27" rot="R90"/>
+</element>
+<element name="R6" library="Pinoccio" package="0402-RES" value="100k" x="11.0236" y="26.543" rot="R270"/>
+<element name="R7" library="Pinoccio" package="0402-RES" value="100k" x="13.5636" y="26.543" rot="R270"/>
 <element name="JP11" library="Pinoccio" package="STAND-OFF" value="STAND-OFF" x="3.556" y="46.482" locked="yes"/>
 <element name="JP12" library="Pinoccio" package="STAND-OFF" value="STAND-OFF" x="3.556" y="3.556" locked="yes"/>
 <element name="JP13" library="Pinoccio" package="STAND-OFF" value="STAND-OFF" x="73.2028" y="59.0804" locked="yes"/>
