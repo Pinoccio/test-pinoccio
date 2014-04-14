@@ -511,7 +511,7 @@ void flash256RFR2() {
     TD(Serial1.println("-- erasing chip"));
     pgm.eraseChip();
     TD(Serial1.println("-- writing fuses"));
-    pgm.writeFuseBytes(0xDE, 0xD0, 0xDE, 0xFF);
+    pgm.writeFuseBytes(0xDE, 0xD0, 0xDE, 0x3F);
     TD(Serial1.println("-- writing bootloader"));
     err = pgm.writeProgram(0x3E000, atmega256rfr2_bootloader, sizeof(atmega256rfr2_bootloader));
     if (err == true) {
@@ -519,7 +519,7 @@ void flash256RFR2() {
       testFailed = true;
       return;
     }
-    pgm.writeFuseBytes(0xDE, 0xD0, 0xDE, 0xEF);
+    pgm.writeFuseBytes(0xDE, 0xD0, 0xDE, 0x2F);
   } else {
     TD(Serial1.println("FAIL: Unable to find signature for 256RFR2"));
     testFailed = true;
