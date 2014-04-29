@@ -26,29 +26,29 @@
 /*
 
  Copyright 2012 Nick Gammon.
- 
- 
+
+
  PERMISSION TO DISTRIBUTE
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  and associated documentation files (the "Software"), to deal in the Software without restriction,
  including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
  and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
  subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in
  all copies or substantial portions of the Software.
- 
- 
+
+
  LIMITATION OF LIABILITY
- 
+
  The software is provided "as is", without warranty of any kind, express or implied,
  including but not limited to the warranties of merchantability, fitness for a particular
  purpose and noninfringement. In no event shall the authors or copyright holders be liable
  for any claim, damages or other liability, whether in an action of contract,
  tort or otherwise, arising from, out of or in connection with the software
  or the use or other dealings in the software.
- 
+
  */
 
 #include <SPI.h>
@@ -66,9 +66,10 @@
 signatureType signatures[] =
 {
   //     signature          description   flash size  bootloader size
-  { 
-    { 
-      0x1E, 0xA8, 0x02     }
+  {
+    {
+      0x1E, 0xA8, 0x02
+    }
     , "ATmega256RFR2",  256 * kb,   8 * kb,
     (byte*)atmega256rfr2_bootloader,// loader image
     0x3E000,      // start address
@@ -77,19 +78,23 @@ signatureType signatures[] =
     0xFF,         // fuse low byte: external clock, max start-up time
     0xD0,         // fuse high byte: SPI enable, boot into bootloader, 8192 byte bootloader
     0xFE,         // fuse extended byte: brown-out detection at 2.7V
-    0x2F   }
+    0x2F
+  }
   ,       // lock bits: SPM is not allowed to write to the Boot Loader section.
 
 
   // Atmega32U2 family
-  { 
-    { 
-      0x1E, 0x93, 0x89     }
-    , "ATmega8U2",    8 * kb,   512   }
+  {
+    {
+      0x1E, 0x93, 0x89
+    }
+    , "ATmega8U2",    8 * kb,   512
+  }
   ,
-  { 
-    { 
-      0x1E, 0x94, 0x89     }
+  {
+    {
+      0x1E, 0x94, 0x89
+    }
     , "ATmega16U2",  16 * kb,   1 * kb,
     (byte*)atmega16u2_bootloader,// loader image
     0x0000,      // start address
@@ -98,12 +103,14 @@ signatureType signatures[] =
     0xEF,         // fuse low byte:
     0xD9,         // fuse high byte:
     0xF4,         // fuse extended byte:
-    0x2F   }
+    0x2F
+  }
   ,       // lock bits: SPM is not allowed to write to the Boot Loader section.
 
-  { 
-    { 
-      0x1E, 0x95, 0x8A     }
+  {
+    {
+      0x1E, 0x95, 0x8A
+    }
     , "ATmega32U2",  32 * kb,   1 * kb,
     (byte*)atmega16u2_bootloader,// loader image
     0x0000,      // start address
@@ -112,26 +119,32 @@ signatureType signatures[] =
     0xEF,         // fuse low byte:
     0xD9,         // fuse high byte:
     0xF4,         // fuse extended byte:
-    0x2F   }
+    0x2F
+  }
   ,       // lock bits: SPM is not allowed to wri
 
   // Atmega32U4 family
-  { 
-    { 
-      0x1E, 0x94, 0x88     }
-    , "ATmega16U4",  16 * kb,   512   }
+  {
+    {
+      0x1E, 0x94, 0x88
+    }
+    , "ATmega16U4",  16 * kb,   512
+  }
   ,
-  { 
-    { 
-      0x1E, 0x95, 0x87     }
-    , "ATmega32U4",  32 * kb,   512   }
+  {
+    {
+      0x1E, 0x95, 0x87
+    }
+    , "ATmega32U4",  32 * kb,   512
+  }
   ,
 
 
   // ATtiny13 family
-  { 
-    { 
-      0x1E, 0x90, 0x07     }
+  {
+    {
+      0x1E, 0x90, 0x07
+    }
     , "ATtiny13A",    1 * kb,   0,
     (byte*)attiny13a,// loader image
     0x0000,      // start address
@@ -140,14 +153,15 @@ signatureType signatures[] =
     0x2A,         // fuse low byte:
     0xFB,         // fuse high byte:
     0xFF,         // fuse extended byte:
-    0x2F   }
+    0x2F
+  }
   ,       // lock bits: SPM is not allowed to write to the Boot Loader section.
 
 };
 
 // if signature found in above table, this is its index
-AVRProgrammer::AVRProgrammer(int CS, SPIClass &SPIDriver, int clockDivider) : 
-chipSelectPin(CS), SPI(SPIDriver), spiSpeed(clockDivider) {
+AVRProgrammer::AVRProgrammer(int CS, SPIClass &SPIDriver, int clockDivider) :
+  chipSelectPin(CS), SPI(SPIDriver), spiSpeed(clockDivider) {
   foundSig = -1;
   lastAddressMSB = 0;
 
@@ -162,7 +176,7 @@ chipSelectPin(CS), SPI(SPIDriver), spiSpeed(clockDivider) {
 void AVRProgrammer::begin() {
   pinMode(chipSelectPin, OUTPUT);
   digitalWrite(chipSelectPin, LOW);
-  this->SPI.begin(); 
+  this->SPI.begin();
 }
 
 
@@ -188,7 +202,7 @@ void AVRProgrammer::startProgramming() {
     SPI.transfer(programAcknowledge);
     confirm = SPI.transfer(0);
     SPI.transfer(0);
-  } 
+  }
   while (confirm != programAcknowledge);
   PD(Serial1.println("Entered programming mode OK"));
 
@@ -252,7 +266,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
     PD(Serial1.print("Got "));
     PD(showHex(program(readLowFuseByte, readLowFuseByteArg2)));
     PD(Serial1.println());
-  } 
+  }
   else {
     PD(Serial1.print("Successfully wrote low fuse: "));
     PD(showHex(program(readLowFuseByte, readLowFuseByteArg2)));
@@ -266,7 +280,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
     PD(Serial1.print("Got "));
     PD(showHex(program(readHighFuseByte, readHighFuseByteArg2)));
     PD(Serial1.println());
-  } 
+  }
   else {
     PD(Serial1.print("Successfully wrote high fuse: "));
     PD(showHex(program(readHighFuseByte, readHighFuseByteArg2)));
@@ -280,7 +294,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
     PD(Serial1.print("Got "));
     PD(showHex(program(readExtendedFuseByte, readExtendedFuseByteArg2)));
     PD(Serial1.println());
-  } 
+  }
   else {
     PD(Serial1.print("Successfully wrote extended fuse: "));
     PD(showHex(program(readExtendedFuseByte, readExtendedFuseByteArg2)));
@@ -294,7 +308,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
     PD(Serial1.print("Got "));
     PD(showHex(program(readLockByte, readLockByteArg2)));
     PD(Serial1.println());
-  } 
+  }
   else {
     PD(Serial1.print("Successfully wrote lock fuse: "));
     PD(showHex(program(readLockByte, readLockByteArg2)));
@@ -309,7 +323,7 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
 bool AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, const int length) {
 
   bool ret = false;
-  
+
   if (image == 0) {
     PD(Serial1.println("No bootloader support for this device."));
     return 1;
@@ -317,7 +331,7 @@ bool AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
 
   begin();
   startProgramming();
-      
+
   int i;
   byte lFuse = program(readLowFuseByte, readLowFuseByteArg2);
 
@@ -373,7 +387,7 @@ bool AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
     if (found != expected) {
       if (errors <= 100) {
         PD(Serial1.print("Verification error at address ");
-        PD(showHex(addr + i, false, true)));
+           PD(showHex(addr + i, false, true)));
         PD(Serial1.print(": Got: "));
         PD(showHex(found));
         PD(Serial1.print(" Expected: "));
@@ -396,14 +410,14 @@ bool AVRProgrammer::writeProgram(unsigned long loaderStart, const byte *image, c
   }
   PD(Serial1.println("Done."));
   end();
-  
+
   return ret;
 }
 
 bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint8_t flashSS, const uint32_t flashAddress, const uint32_t length) {
 
   bool ret = false;
-    
+
   uint32_t i;
   uint32_t addr = loaderStart;
   uint32_t len = length;
@@ -434,7 +448,7 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   PD(Serial1.println("Writing program..."));
 
   // load each word
-  for (i=0; i<len; i+=2, bufCtr+=2) {
+  for (i = 0; i < len; i += 2, bufCtr += 2) {
 
     unsigned long thisPage = (addr + i) & pagemask;
     // page changed? commit old one
@@ -446,23 +460,23 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
     if (i % bufLen == 0) {
       // read new chunk of bytes into buffer
       bufCtr = 0;
-      
+
       end();
       flash->begin(flashSS, SPI);
       flash->read(flashAddress + i, &flashBuffer, bufLen);
       flash->end();
-      
+
       timesThrough++;
       PD(Serial1.print("Writing "));
       if ((timesThrough * bufLen) > len) {
         PD(Serial1.print(len));
-      } 
+      }
       else {
         PD(Serial1.print(timesThrough * bufLen));
       }
       PD(Serial1.print(" bytes of a total of "));
       PD(Serial1.println(len));
-      
+
       begin();
       startProgramming();
     }
@@ -477,17 +491,17 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
   PD(Serial1.println("Written."));
 
   // check each byte
-  for (i=0; i<len; i++, bufCtr++) {
+  for (i = 0; i < len; i++, bufCtr++) {
     if (i % bufLen == 0) {
       PD(Serial1.print("Verifying flash at address: 0x"));
       PD(Serial1.println(loaderStart + i, HEX));
       bufCtr = 0;
-      
+
       end();
       flash->begin(flashSS, SPI);
       flash->read(flashAddress + i, &flashBuffer, bufLen);
       flash->end();
-      
+
       begin();
       startProgramming();
     }
@@ -509,7 +523,7 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
 
   if (errors == 0) {
     PD(Serial1.println("No errors found."));
-  } 
+  }
   else {
     ret = true;
     PD(Serial1.print(errors, DEC));
@@ -518,7 +532,7 @@ bool AVRProgrammer::writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass
       PD(Serial1.print("First 100 shown."));
     }
   }
-  
+
   end();
   PD(Serial1.print("Done."));
   return ret;
@@ -616,7 +630,7 @@ byte AVRProgrammer::writeFlash(unsigned long addr, const byte data) {
 void AVRProgrammer::showYesNo(const boolean b, const boolean newline) {
   if (b) {
     PD(Serial1.print("Yes"));
-  } 
+  }
   else {
     PD(Serial1.print("No"));
   }
@@ -629,7 +643,7 @@ void AVRProgrammer::showYesNo(const boolean b, const boolean newline) {
 void AVRProgrammer::pollUntilReady() {
   if (signatures[foundSig].timedWrites) {
     delay (10);  // at least 2 x WD_FLASH which is 4.5 mS
-  } 
+  }
   else {
     while ((program(pollReady) & 1) == 1) {
     }  // wait till ready
@@ -678,8 +692,9 @@ void AVRProgrammer::showHex(const byte b, const boolean newline, const boolean s
     PD(Serial1.print("0x"));
   }
   // try to avoid using sprintf
-  char buf[4] = { 
-    ((b >> 4) & 0x0F) | '0', (b & 0x0F) | '0', ' ' , 0     };
+  char buf[4] = {
+    ((b >> 4) & 0x0F) | '0', (b & 0x0F) | '0', ' ' , 0
+  };
   if (buf[0] > '9') {
     buf[0] += 7;
   }
@@ -691,5 +706,6 @@ void AVRProgrammer::showHex(const byte b, const boolean newline, const boolean s
     PD(Serial1.println());
   }
 }
+
 
 
