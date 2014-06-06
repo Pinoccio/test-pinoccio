@@ -1,6 +1,6 @@
 /*
 Set fuses to:
-Low: FF
+Low: FF (E2 for internal osc)
 High: D1
 Extended: FC
 */

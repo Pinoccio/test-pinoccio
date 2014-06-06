@@ -1,6 +1,11 @@
-#include <LeadScout.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <Scout.h>
+#include <GS.h>
+#include <bitlash.h>
+#include <lwm.h>
+#include <js0n.h>
+#include <peripherals/Flash.h>
 
 FlashClass DriverFlash(SS, SPI);
 uint32_t start = millis();
@@ -27,16 +32,26 @@ void setup() {
   pinMode(MEGA_16U2_RESET, OUTPUT);
   digitalWrite(MEGA_16U2_RESET, HIGH);
   
-  while (!DriverFlash.available()) {
-    if (millis() - start > 1000) {
-      Serial.println("FAIL: Serial flash chip not found");
-      return;
+  DriverFlash.begin(SS, SPI);
+
+  bool flashFound = false;
+  while (millis() - start < 1000) {
+    if (DriverFlash.available()) {
+      Serial.println("-- Serial flash chip found");
+      flashFound = true;
+      DriverFlash.end();
+      break;
     }
   }
-  Serial.println("--- Serial flash chip found");
   
+  if (!flashFound) {
+    Serial.println("FAIL: Serial flash chip not found");
+    return;
+  }
+  
+  DriverFlash.begin(SS, SPI);
   //DriverFlash.bulkErase(); 
-  // Store flash hex in sector 4 (0x40000 - 0x4F000, 61,440 bytes)
+  // Store flash hex in sector 4 (0x40000)
   Serial.println("--- Erasing sector 0x40000");
   DriverFlash.sectorErase(addr);
   Serial.println("--- Erasing sector 0x50000");
@@ -46,6 +61,7 @@ void setup() {
   Serial.println("--- Erasing sector 0x70000");
   DriverFlash.sectorErase(addr+0x30000); 
   Serial.println("--- Ready for hex bytes");
+  DriverFlash.end();
 }
 
 void loop() {
@@ -60,9 +76,11 @@ void loop() {
     if (ctr == BUFSIZE) {
       dataRead[BUFSIZE] = 0;
 
+      DriverFlash.begin(SS, SPI);
       DriverFlash.write(addr, &dataRead, BUFSIZE);
       DriverFlash.read(addr, &dataWritten, BUFSIZE);
-     
+      DriverFlash.end();
+      
       if (strncmp((const char*)dataRead, (const char*)dataWritten, BUFSIZE) != 0) {
         Serial.print("FAIL: Data failed to write to and read from flash at address: ");
         Serial.println(addr, HEX);

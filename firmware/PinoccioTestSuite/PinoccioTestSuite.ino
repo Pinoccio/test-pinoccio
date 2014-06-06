@@ -98,7 +98,6 @@ DUT pins used:
 #include <lwm.h>
 #include <js0n.h>
 
-
 #define DRIVER_VERSION "1.1"
 
 #define AVR_TESTSUITE_DEBUG
@@ -156,19 +155,24 @@ const uint32_t HW_SERIAL_ADDR = 0x30000;
 
 const bool RESET_HW_SERIAL = false;
 //const uint32_t HW_SERIAL_INIT = 0xF4240;    // 1,000,000
-const uint32_t HW_SERIAL_INIT = 0x1E8480; // 2,000,000
+//const uint32_t HW_SERIAL_INIT = 0x1E8480; // 2,000,000
 //const uint32_t HW_SERIAL_INIT = 0x2DC6C0; // 3,000,000
+const uint32_t HW_SERIAL_INIT = 0x3D0900; // 4,000,000
+//const uint32_t HW_SERIAL_INIT = 0x4C4B40; // 5,000,000
+//const uint32_t HW_SERIAL_INIT = 0x5B8D80; // 6,000,000
 
 uint32_t hwSerial;
 
 void setup() {
   uint32_t start = millis();
   
+  pinMode(VCC_ENABLE, OUTPUT);
+  digitalWrite(VCC_ENABLE, HIGH);
+  
   Wire.begin();
+  Serial.begin(115200);
   Serial1.begin(115200);
-  addBitlashFunction("i2c.send", (bitlash_function) i2cSend);
-  Shell.disableShell();
-  Scout.setup();
+  resetDUTPins();
   
   TD(Serial1.println("- Initialize Test Jig"));
   sendCommand("?", 3);
@@ -197,11 +201,10 @@ void setup() {
   getSettingsFromFlash();
   
   testJigSetup();
-  RgbLed.cyan();
+  Led.cyan();
 }
 
 void loop() {
-  //Scout.loop();
   testJigLoop();
 }
 
@@ -222,41 +225,33 @@ void getSettingsFromFlash() {
 }
 
 void testJigSetup() {
+  resetDUTPins();
   
-  resetHardwarePins();
+  pinMode(startButton, INPUT);
+  digitalWrite(startButton, HIGH);
   
   testIsRunning = false;
   testFailed = false;
 
-  while(Serial.read() != -1);
-  
   TD(Serial1.println("--- Scout Test Jig ready to go! ---"));
   //lcd.clearLCD();
   //Serial1.println("Hello");
 }
 
-void resetHardwarePins() {
+void resetDUTPins() {
   // disable all switches and chip selects
-  pinMode(VCC_ENABLE, OUTPUT);
-  digitalWrite(VCC_ENABLE, LOW);
   pinMode(POWER_SWITCH, OUTPUT);
-  digitalWrite(POWER_SWITCH, LOW);
   pinMode(VBAT_SWITCH, OUTPUT);
-  digitalWrite(VBAT_SWITCH, LOW);
   pinMode(VUSB_SWITCH, OUTPUT);
+  digitalWrite(POWER_SWITCH, LOW);
+  digitalWrite(VBAT_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, LOW);
   
   resetSPIChipSelectPins();
-  
-  pinMode(BACKPACK_BUS, INPUT);
-  digitalWrite(BACKPACK_BUS, LOW);
-  pinMode(0, INPUT);
-  pinMode(1, INPUT);
+  digitalWrite(MEGA_256RFR2_RESET, LOW);
+
   pinMode(MOSI, OUTPUT);
   digitalWrite(MOSI, LOW);
-
-  pinMode(startButton, INPUT);
-  digitalWrite(startButton, HIGH);
   
   doCommand("i2c.send(\"WD000\")");
   doCommand("i2c.send(\"WD010\")");
@@ -270,7 +265,8 @@ void resetHardwarePins() {
   doCommand("i2c.send(\"WD090\")");
   doCommand("i2c.send(\"WD100\")");
   doCommand("i2c.send(\"WD120\")");
-  doCommand("i2c.send(\"WD170\")");  
+  doCommand("i2c.send(\"WD170\")"); 
+  delay(500); 
 }
 
 void resetSPIChipSelectPins() {
@@ -291,40 +287,31 @@ void testJigLoop() {
 
 void startTest() {
   testIsRunning = true;
-  RgbLed.turnOff();
-  
-  testPowerUSBBattery();
-  
-  flash16U2();
-  flash256RFR2();
-  
-  if (testFailed == false) {
-    testReset();
-    testPower3V3();
-    testFuelGauge();
-    testGPIO();
-    
-    // testMesh();
-
-    if (testFailed == false) {
-      writeEeprom();
-    }
-  }
-  
-  if (testFailed == false) {
-    RgbLed.green();
+  Led.turnOff();
+   
+  if (testPower() &&
+      flash16U2() &&
+      flash256RFR2() &&
+      testReset() && 
+      test3V3() &&
+      testFuelGauge() &&
+      testGPIO() &&
+      // testMesh() &&
+      writeEeprom()) {
+    Led.green();
   } else {
-    RgbLed.red();
+    Led.red();
   }
-
+  
   TD(Serial1.println("Test complete"));
   testJigSetup();
 }
 
-void testPowerUSBBattery() {
+bool testPower() {
   TD(Serial1.println("- Test Power -"));
   float reading;
-  
+  resetDUTPins();
+ 
   TD(Serial1.println("-- Testing all power off"));
   digitalWrite(VBAT_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, LOW);
@@ -363,7 +350,7 @@ void testPowerUSBBattery() {
   digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(500);
+  delay(1000);
   
   reading = readAnalog(VUSB_ADC);
   if (reading > OFF_MAX) {
@@ -399,13 +386,15 @@ void testPowerUSBBattery() {
     testFailed = true;
   }
 
-  return;
+  return !testFailed;
 }
 
-void testPower3V3() {
+bool test3V3() {
   TD(Serial1.println("- Test 3V3 Power -"));
   float reading;
-  
+  resetDUTPins();
+  digitalWrite(MEGA_256RFR2_RESET, HIGH);
+
   TD(Serial1.println("-- Testing all power off"));
   digitalWrite(VBAT_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, LOW);
@@ -420,7 +409,9 @@ void testPower3V3() {
   }
   
   TD(Serial1.println("-- Testing 3V3 via USB Power"));
+  digitalWrite(VBAT_SWITCH, LOW);
   digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
 
   reading = readAnalog(VCC_ADC);
@@ -433,16 +424,17 @@ void testPower3V3() {
   TD(Serial1.println("-- Testing 3V3 via VBAT Power"));
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(VUSB_SWITCH, LOW);
-  delay(500);
+  digitalWrite(POWER_SWITCH, HIGH);
+  delay(1000);
 
-  int failTries;
+  int failTries = 0;
   bool failed = true;
 
-  while (failed && failTries < 10) {
+  while (failed && failTries < 5) {
     reading = readAnalog(VCC_ADC);
     if (reading < VCC_MIN) {
       failTries++;
-      delay(100);
+      delay(1000);
     } else {
       failed = false;
       break;
@@ -471,11 +463,15 @@ void testPower3V3() {
   digitalWrite(POWER_SWITCH, HIGH);
   delay(250);
 
-  return;
+  Serial.end();
+  Serial.begin(115200);
+  return !testFailed;
 }
 
-void flash16U2() {
+bool flash16U2() {
   TD(Serial1.println("- Flash 16U2 -"));
+  resetDUTPins();
+  
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   resetSPIChipSelectPins();
@@ -498,7 +494,7 @@ void flash16U2() {
     if (err == true) {
       TD(Serial1.println("FAIL: Verification of writing to 16U2 failed"));
       testFailed = true;
-      return;
+      return false;
     }
   } else {
     TD(Serial1.println("FAIL: Unable to find signature for 16U2"));
@@ -507,11 +503,13 @@ void flash16U2() {
 
   TD(Serial1.println("-- complete"));
   pgm.end();
-  return;
+  return !testFailed;
 }
 
-void flash256RFR2() {
+bool flash256RFR2() {
   TD(Serial1.println("- Flash 256RFR2 -"));
+  resetDUTPins();
+  
   digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   resetSPIChipSelectPins();
@@ -534,7 +532,7 @@ void flash256RFR2() {
     if (err == true) {
       TD(Serial1.println("FAIL: Verification of writing bootloader to 256RFR2 failed"));
       testFailed = true;
-      return;
+      return false;
     }
   } else {
     TD(Serial1.println("FAIL: Unable to find signature for 256RFR2"));
@@ -553,61 +551,49 @@ void flash256RFR2() {
     // lock the bootloader from getting overwritten
     pgm2.writeFuseBytes(0xDE, 0xD0, 0xFE, 0xEF);
     // now flash
-    err = pgm2.writeProgramFromSerialFlash(0x00000, &DriverFlash, DRIVER_FLASH_CS, 0x40000, 60031); // be sure not to make this too short! Don't truncate
+    err = pgm2.writeProgramFromSerialFlash(0x00000, &DriverFlash, DRIVER_FLASH_CS, 0x40000, 107615); // be sure not to make this too short! Don't truncate
   }
   
   if (err == true) {
     TD(Serial1.println("FAIL: Verification of writing sketch to 256RFR2 failed"));
     testFailed = true;
-    return;
+    return false;
   }
  
   pgm2.end();
   TD(Serial1.println("-- complete"));
-  return;
+  return !testFailed;
 }
 
-void testReset() {
+bool testReset() {
   TD(Serial1.println("- Test Reset -"));
-  
-  Serial.begin(115200);
-  digitalWrite(VBAT_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, LOW);
-  digitalWrite(POWER_SWITCH, LOW);
-  delay(1000);
+  resetDUTPins();
   
   digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(1000);
-  
-  digitalWrite(MEGA_256RFR2_RESET, LOW);
-  delay(500);
-  //while(Serial.read() != -1);
   digitalWrite(MEGA_256RFR2_RESET, HIGH);
-  delay(1000);
 
-  if (!expectPrompt(3000)) {
+  if (!expectPrompt(2000)) {
     testFailed = true;
-    return;
+    return false;
   }
+
+  return true;
 }
 
-void testFuelGauge() {
+bool testFuelGauge() {
   TD(Serial1.println("- Test Fuel Gauge -"));
+  resetDUTPins();
   
-  digitalWrite(VBAT_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, LOW);
-  digitalWrite(POWER_SWITCH, LOW);
-  delay(500);
-  Serial.begin(115200);
-  while(Serial.read() != -1);
   digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(1000);
+  digitalWrite(MEGA_256RFR2_RESET, HIGH);
 
-  if (!expectPrompt(3000)) {
+  if (!expectPrompt(2000)) {
     testFailed = true;
-    return;
+    return false;
   }
   
   Serial.println("print power.voltage");
@@ -639,7 +625,7 @@ void testFuelGauge() {
   if (done == false) {
     TD(Serial1.println("FAIL: Incorrect prompt received"));
     testFailed = true;
-    return;
+    return false;
   }
   
   voltage = atoi(buf);
@@ -648,33 +634,30 @@ void testFuelGauge() {
     TD(Serial1.print("FAIL: Fuel gauge outside of range: "));
     TD(Serial1.println(voltage));
     testFailed = true;
-    return;
+    return false;
   } else {
     TD(Serial1.println("-- Voltage good "));
   }
 
-  return;
+  return !testFailed;
 }
 
 // Keep in mind, the logic level converters only work in one direction.  You must set the 
 // digital level on the AVR328, and then read it from the Scout under test.  The other way 
 // doesn't work.  This only took 12 hours to figure out.  0_o
-void testGPIO() {
+bool testGPIO() {
   TD(Serial1.println("- Test GPIO -"));
- 
-  
-  digitalWrite(VUSB_SWITCH, LOW);
-  digitalWrite(POWER_SWITCH, LOW);
-  delay(500);
-  Serial.begin(115200);
-  while (Serial.available()) { Serial.read(); }
+  resetDUTPins();
   digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(3000);
+  digitalWrite(MEGA_256RFR2_RESET, HIGH);
   
-  if (!expectPrompt(3000)) {
+  delay(1000);
+  
+  if (!expectPrompt(2000)) {
     testFailed = true;
-    return;
+    return false;
   }
   
   // digital pins
@@ -696,12 +679,11 @@ void testGPIO() {
   checkPinVia328(29, 1);      // A5
   checkPinVia328(30, 2);      // A6
   checkPinVia328(31, 3);      // A7
-    
-  Serial.end();
-  return;
+ 
+  return !testFailed;
 }
 
-void checkPinVia328(int scoutPin, int avr328Pin) {
+bool checkPinVia328(int scoutPin, int avr328Pin) {
   int offset = 1;
   int offset2 = 13;
   if (scoutPin >= 10) {
@@ -736,7 +718,7 @@ void checkPinVia328(int scoutPin, int avr328Pin) {
   writeDigital(avr328Pin, 0);
 }
 
-void checkPinViaDriver(int scoutPin, int driverPin) {
+bool checkPinViaDriver(int scoutPin, int driverPin) {
   int offset = 1;
   int offset2 = 13;
   if (scoutPin >= 10) {
@@ -781,25 +763,23 @@ void checkPinViaDriver(int scoutPin, int driverPin) {
 //    TD(Serial1.println(" should be low but it's high"));
 //    testFailed = true;
 //  }
+
+  return !testFailed;
 }
 
-void testMesh() {
+bool testMesh() {
   TD(Serial1.println("- Test Mesh Radio -"));
-  
-  while(Serial.read() != -1);
-  
-  digitalWrite(VUSB_SWITCH, LOW);
-  digitalWrite(POWER_SWITCH, LOW);
-  delay(500);
-  Serial.begin(115200);
-  while (Serial.available()) { Serial.read(); }
+  resetDUTPins();
+  digitalWrite(MEGA_256RFR2_RESET, HIGH);
+
   digitalWrite(VUSB_SWITCH, HIGH);
+  delay(500);
+  //while(Serial.read() != -1);
   digitalWrite(POWER_SWITCH, HIGH);
-  delay(1000);
   
-  if (!expectPrompt(3000)) {
+  if (!expectPrompt(5000)) {
     testFailed = true;
-    return;
+    return false;
   }
   
   TD(Serial1.println("-- Configure mesh settings"));
@@ -844,33 +824,21 @@ void testMesh() {
     testFailed = true;
   }
   
-  return;
+  return !testFailed;
 }
 
-void writeEeprom() {
-  
-  digitalWrite(VUSB_SWITCH, LOW);
-  digitalWrite(POWER_SWITCH, LOW);
-  delay(500);
-  
-//  if (RESET_HW_SERIAL == true) {
-//    // initialize unique ID;
-//    writeHwSerialToFlash(HW_SERIAL_INIT);
-//  } 
-//  
-//  hwSerial = readHwSerialFromFlash();
+bool writeEeprom() {
+  resetDUTPins();
+  digitalWrite(MEGA_256RFR2_RESET, HIGH);
+ 
   TD(Serial1.print("--- Fetched unique ID: 0x"));
   TD(Serial1.println(hwSerial, HEX));
   
-  Serial.begin(115200);
-  while (Serial.available()) { Serial.read(); }
   digitalWrite(VUSB_SWITCH, HIGH);
+  delay(500);
+  //while(Serial.read() != -1);
   digitalWrite(POWER_SWITCH, HIGH);
-//  digitalWrite(DRIVER_FLASH_CS, HIGH);
-//  digitalWrite(MEGA_256RFR2_RESET, HIGH);
-//  digitalWrite(MEGA_16U2_RESET, HIGH);
   delay(1000);
-  
    
   TD(Serial1.println("-- preparing EEPROM"));
   AVRProgrammer pgm(MEGA_256RFR2_RESET, SPI, SPI_CLOCK_DIV32);
@@ -959,6 +927,7 @@ void writeEeprom() {
   }
   
   pgm.end();
+  return !testFailed;
 }
 
 void readWire() {
@@ -1076,34 +1045,48 @@ int writeDigital(int pin, int value) {
 
 bool expectPrompt(int timeout) {
   uint32_t time = millis();
+  bool debug = false;
+  bool serialFound = false;
   
-  while (!Serial.available()) {
-    if (millis() - time > timeout) {
-      TD(Serial1.println("FAIL: No serial data received after board reset"));
-      while (Serial.available()) { Serial.read(); }
-      return false;
+  while (millis() - time < timeout) {
+    if (Serial.available() > 0) {
+      debug ? TD(Serial1.println("Serial is available")) : false;
+      serialFound = true;
+      break;
     }
   }
+
+  if (!serialFound) {
+     TD(Serial1.println("FAIL: No serial data received after board reset"));
+     return false;
+  }
   
-  char buf[128];
+  char buf[256];
   time = millis();
+  char *start;
   int i = 0;
+  int j = 0;
   
-  while (millis() - time < timeout && i < 21) {
+  debug ? TD(Serial1.print("Reading: ")) : false;
+  while (millis() - time < timeout && i<256) {
     if (Serial.available() > 0) {
       buf[i++] = Serial.read();
+      debug ? TD(Serial1.write(buf[i-1])) : false;
+      if (i>=1 && buf[i-1] == '>' && buf[i] == ' ') {
+        break;
+      }
     }
   }
   
   if (strncmp(buf, "Hello from Pinoccio!", 20) != 0) {
     TD(Serial1.print("FAIL: Incorrect prompt received after board reset: "));
     TD(Serial1.println(buf));
-    while (Serial.available()) { Serial.read(); }
     return false;
   }
   
   TD(Serial1.println("-- Prompt received after reset"));
-  while (Serial.available()) { Serial.read(); }
+  Serial.end();
+  Serial.begin(115200);
   return true;
 }
 
