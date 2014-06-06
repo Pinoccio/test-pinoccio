@@ -551,7 +551,7 @@ bool flash256RFR2() {
     // lock the bootloader from getting overwritten
     pgm2.writeFuseBytes(0xDE, 0xD0, 0xFE, 0xEF);
     // now flash
-    err = pgm2.writeProgramFromSerialFlash(0x00000, &DriverFlash, DRIVER_FLASH_CS, 0x40000, 107615); // be sure not to make this too short! Don't truncate
+    err = pgm2.writeProgramFromSerialFlash(0x00000, &DriverFlash, DRIVER_FLASH_CS, 0x40000, 107199); // be sure not to make this too short! Don't truncate
   }
   
   if (err == true) {

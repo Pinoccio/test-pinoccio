@@ -4,7 +4,7 @@ import os
 import binascii
 import sys
 
-filename = "bootstrap-2014051501.hex"
+filename = "bootstrap-2014060501.hex"
 
 print "Connecting to serial"
 ser = serial.Serial("/dev/tty.usbmodema0121", 115200, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, 5)
