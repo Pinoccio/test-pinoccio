@@ -156,9 +156,9 @@ const uint32_t HW_SERIAL_ADDR = 0x30000;
 const bool RESET_HW_SERIAL = false;
 //const uint32_t HW_SERIAL_INIT = 0xF4240;    // 1,000,000
 //const uint32_t HW_SERIAL_INIT = 0x1E8480; // 2,000,000
-//const uint32_t HW_SERIAL_INIT = 0x2DC6C0; // 3,000,000
-const uint32_t HW_SERIAL_INIT = 0x3D0900; // 4,000,000
-//const uint32_t HW_SERIAL_INIT = 0x4C4B40; // 5,000,000
+//const uint32_t HW_SERIAL_INIT = 0x2DC8CA; // 3,000,000
+//const uint32_t HW_SERIAL_INIT = 0x3D0900; // 4,000,000
+const uint32_t HW_SERIAL_INIT = 0x4C4B40; // 5,000,000
 //const uint32_t HW_SERIAL_INIT = 0x5B8D80; // 6,000,000
 
 uint32_t hwSerial;
