@@ -1078,7 +1078,7 @@ bool expectPrompt(int timeout) {
     }
   }
   
-  if (strncmp(buf, "Hello from Pinoccio!", 20) != 0) {
+  if (strstr(buf, "Pinoccio!") == NULL) {
     TD(Serial1.print("FAIL: Incorrect prompt received after board reset: "));
     TD(Serial1.println(buf));
     return false;
