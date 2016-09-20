@@ -120,7 +120,8 @@ class AVRProgrammer {
     void end();
     void startProgramming();
     void getSignature();
-    void getFuseBytes();
+    void printFuseBytes();
+    byte getFuseByte(const byte fuse);
     void writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse = 0xFF);
     bool writeProgram(unsigned long loaderStart, const byte *image, const int length);
     bool writeProgramFromSerialFlash(uint32_t loaderStart, FlashClass *flash, const uint8_t flashSS, const uint32_t flashAddress, const uint32_t length);

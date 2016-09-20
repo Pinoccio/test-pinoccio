@@ -211,6 +211,9 @@ void AVRProgrammer::startProgramming() {
 }
 
 void AVRProgrammer::getSignature() {
+  begin();
+  startProgramming();
+
   foundSig = -1;
   lastAddressMSB = 0;
 
@@ -240,10 +243,14 @@ void AVRProgrammer::getSignature() {
     }
   }
 
+  end();
   PD(Serial1.print("Unrecogized signature."));
 }
 
-void AVRProgrammer::getFuseBytes() {
+void AVRProgrammer::printFuseBytes() {
+  begin();
+  startProgramming();
+
   PD(Serial1.print("LFuse = "));
   PD(showHex(program(readLowFuseByte, readLowFuseByteArg2), true));
   PD(Serial1.print("HFuse = "));
@@ -254,10 +261,41 @@ void AVRProgrammer::getFuseBytes() {
   PD(showHex(program(readLockByte, readLockByteArg2), true));
   PD(Serial1.print("Clock calibration = "));
   PD(showHex(program(readCalibrationByte), true));
+
+  end();
+}
+
+byte AVRProgrammer::getFuseByte(const byte fuse) {
+  begin();
+  startProgramming();
+
+  byte ret;
+
+  switch(fuse) {
+    case 0: // low byte
+      ret = program(readLowFuseByte, readLowFuseByteArg2);
+      break;
+    case 1: // high byte
+      ret = program(readHighFuseByte, readHighFuseByteArg2);
+      break;
+    case 2: // extended byte
+      ret = program(readExtendedFuseByte, readExtendedFuseByteArg2);
+      break;
+    case 3: // lock byte
+      ret = program(readLockByte, readLockByteArg2);
+      break;
+    default: // undefined
+      ret = 0;
+  }
+
+  end();
+  return ret;
 }
 
 void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, const byte extendedFuse, const byte lockFuse) {
   PD(Serial1.println("Writing fuses..."));
+  begin();
+  startProgramming();
 
   writeFuse(lowFuse, writeLowFuseByte);
   if (program(readLowFuseByte, readLowFuseByteArg2) != lowFuse) {
@@ -315,8 +353,10 @@ void AVRProgrammer::writeFuseBytes(const byte lowFuse, const byte highFuse, cons
     PD(Serial1.println());
   }
 
+  end();
+
   // confirm them
-  getFuseBytes();
+  printFuseBytes();
 }
 
 // burn the bootloader to the target device
@@ -561,21 +601,36 @@ void AVRProgrammer::readProgram(uint32_t address, uint32_t length) {
 }
 
 uint8_t AVRProgrammer::readEeprom(unsigned long addr) {
+  begin();
+  startProgramming();
+
   PD(Serial1.println("Reading EEPROM..."));
   return program(readEepromMemory, highByte(addr), lowByte(addr));
+
+  end();
 }
 
 void AVRProgrammer::writeEeprom(unsigned long addr, byte value) {
+  begin();
+  startProgramming();
+
   PD(Serial1.println("Writing EEPROM..."));
   program(writeEepromMemory, highByte(addr), lowByte(addr), value);
   pollUntilReady();
+
+  end();
 }
 
 void AVRProgrammer::eraseChip() {
+  begin();
+  startProgramming();
+
   PD(Serial1.println("Erasing chip..."));
   program(programEnable, chipErase);
   //delay(20);  // for Atmega8
   pollUntilReady();
+
+  end();
 }
 
 bool AVRProgrammer::foundSignature() {
