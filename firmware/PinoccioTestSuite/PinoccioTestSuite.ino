@@ -154,11 +154,11 @@ uint16_t hwFamily = 1000;
 const uint32_t HW_SERIAL_ADDR = 0x30000;
 
 const bool RESET_HW_SERIAL = false;
-//const uint32_t HW_SERIAL_INIT = 0xF4240;    // 1,000,000
+const uint32_t HW_SERIAL_INIT = 0x10C8E0;    // 1,100,000 (for CrowdSupply)
 //const uint32_t HW_SERIAL_INIT = 0x1E8480; // 2,000,000
 //const uint32_t HW_SERIAL_INIT = 0x2DC8CA; // 3,000,000
 //const uint32_t HW_SERIAL_INIT = 0x3D0900; // 4,000,000
-const uint32_t HW_SERIAL_INIT = 0x4C4B40; // 5,000,000
+//const uint32_t HW_SERIAL_INIT = 0x4C4B40; // 5,000,000
 //const uint32_t HW_SERIAL_INIT = 0x5B8D80; // 6,000,000
 
 uint32_t hwSerial;
@@ -168,6 +168,7 @@ void setup() {
   
   pinMode(VCC_ENABLE, OUTPUT);
   digitalWrite(VCC_ENABLE, HIGH);
+  DriverFlash.end();
   
   Wire.begin();
   Serial.begin(115200);
@@ -185,7 +186,7 @@ void setup() {
   }
   
   bool flashFound = false;
-  while (millis() - start < 1000) {
+  while (millis() - start < 4000) {
     if (DriverFlash.available()) {
       TD(Serial1.println("-- Serial flash chip found"));
       flashFound = true;
@@ -245,7 +246,7 @@ void resetDUTPins() {
   pinMode(VUSB_SWITCH, OUTPUT);
   digitalWrite(POWER_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, HIGH); // p-channel mosfet, requires active-low
   
   resetSPIChipSelectPins();
   digitalWrite(MEGA_256RFR2_RESET, LOW);
@@ -314,7 +315,7 @@ bool testPower() {
  
   TD(Serial1.println("-- Testing all power off"));
   digitalWrite(VBAT_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(500);
 
@@ -334,7 +335,7 @@ bool testPower() {
  
   TD(Serial1.println("-- Testing VUSB Power"));
   digitalWrite(POWER_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(750);
 
@@ -347,7 +348,7 @@ bool testPower() {
   
   TD(Serial1.println("-- Testing VBAT Power"));
   digitalWrite(POWER_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
@@ -367,7 +368,7 @@ bool testPower() {
   }
   
   TD(Serial1.println("-- Testing Power Switch"));
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, LOW);
   delay(250);
@@ -397,7 +398,7 @@ bool test3V3() {
 
   TD(Serial1.println("-- Testing all power off"));
   digitalWrite(VBAT_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
   
@@ -410,7 +411,7 @@ bool test3V3() {
   
   TD(Serial1.println("-- Testing 3V3 via USB Power"));
   digitalWrite(VBAT_SWITCH, LOW);
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
 
@@ -423,7 +424,7 @@ bool test3V3() {
   
   TD(Serial1.println("-- Testing 3V3 via VBAT Power"));
   digitalWrite(VBAT_SWITCH, HIGH);
-  digitalWrite(VUSB_SWITCH, LOW);
+  digitalWrite(VUSB_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(1000);
 
@@ -447,7 +448,7 @@ bool test3V3() {
   }
   
   TD(Serial1.println("-- Testing Power Switch"));
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, LOW);
   delay(250);
@@ -459,7 +460,7 @@ bool test3V3() {
     testFailed = true;
   }
 
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, HIGH);
   delay(250);
 
@@ -472,7 +473,7 @@ bool flash16U2() {
   TD(Serial1.println("- Flash 16U2 -"));
   resetDUTPins();
   
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, HIGH);
   resetSPIChipSelectPins();
   delay(1000);
@@ -481,20 +482,23 @@ bool flash16U2() {
   AVRProgrammer pgm(MEGA_16U2_RESET, SPI, SPI_CLOCK_DIV128);
   pgm.startProgramming();
   pgm.getSignature();
-  pgm.getFuseBytes();
+  pgm.printFuseBytes();
   
   // if we found a signature, try to write the flash (16U2 requires flash written first, not sure why!)
   if (pgm.foundSignature() != -1) {
     TD(Serial1.println("-- erasing chip"));
     pgm.eraseChip();
-    TD(Serial1.println("-- writing fuses"));
-    pgm.writeFuseBytes(0xEF, 0xD9, 0xF4);
     TD(Serial1.println("-- writing flash"));
     err = pgm.writeProgram(0x0000, atmega16u2_bootloader, sizeof(atmega16u2_bootloader));
     if (err == true) {
       TD(Serial1.println("FAIL: Verification of writing to 16U2 failed"));
       testFailed = true;
       return false;
+    }
+    if (pgm.getFuseByte(0) != 0xEF ||
+        pgm.getFuseByte(1) != 0xD9 ||
+        pgm.getFuseByte(2) != 0xF4) {
+      pgm.writeFuseBytes(0xEF, 0xD9, 0xF4);
     }
   } else {
     TD(Serial1.println("FAIL: Unable to find signature for 16U2"));
@@ -510,16 +514,15 @@ bool flash256RFR2() {
   TD(Serial1.println("- Flash 256RFR2 -"));
   resetDUTPins();
   
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(POWER_SWITCH, HIGH);
   resetSPIChipSelectPins();
   delay(500);
   bool err;
   
   AVRProgrammer pgm(MEGA_256RFR2_RESET, SPI, SPI_CLOCK_DIV128);
-  pgm.startProgramming();
   pgm.getSignature();
-  pgm.getFuseBytes();
+  pgm.printFuseBytes();
   
   // if we found a signature try to write fuses
   if (pgm.foundSignature() != -1) {
@@ -569,12 +572,12 @@ bool testReset() {
   TD(Serial1.println("- Test Reset -"));
   resetDUTPins();
   
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   digitalWrite(MEGA_256RFR2_RESET, HIGH);
 
-  if (!expectPrompt(2000)) {
+  if (!expectPrompt(3000)) {
     testFailed = true;
     return false;
   }
@@ -586,7 +589,7 @@ bool testFuelGauge() {
   TD(Serial1.println("- Test Fuel Gauge -"));
   resetDUTPins();
   
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   digitalWrite(MEGA_256RFR2_RESET, HIGH);
@@ -648,7 +651,7 @@ bool testFuelGauge() {
 bool testGPIO() {
   TD(Serial1.println("- Test GPIO -"));
   resetDUTPins();
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   digitalWrite(VBAT_SWITCH, HIGH);
   digitalWrite(POWER_SWITCH, HIGH);
   digitalWrite(MEGA_256RFR2_RESET, HIGH);
@@ -772,7 +775,7 @@ bool testMesh() {
   resetDUTPins();
   digitalWrite(MEGA_256RFR2_RESET, HIGH);
 
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   delay(500);
   //while(Serial.read() != -1);
   digitalWrite(POWER_SWITCH, HIGH);
@@ -834,7 +837,7 @@ bool writeEeprom() {
   TD(Serial1.print("--- Fetched unique ID: 0x"));
   TD(Serial1.println(hwSerial, HEX));
   
-  digitalWrite(VUSB_SWITCH, HIGH);
+  digitalWrite(VUSB_SWITCH, LOW);
   delay(500);
   //while(Serial.read() != -1);
   digitalWrite(POWER_SWITCH, HIGH);
